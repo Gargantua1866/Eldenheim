@@ -136,10 +136,16 @@ With an empty left hand, the guard button throws a left punch, as in Elden
 Ring; `EmptyHandGuard` (F1 → 2 - Controls) makes it guard with the right
 weapon instead, Valheim-style. The guard can be raised while sprinting.
 
-**Left hand:** hold the two-hand modifier (Use) while equipping a melee
-weapon (hotbar or inventory) to put it in the left hand, replacing a shield or
-torch. Valheim's two-handers also work in either hand, with a shield, torch
-or weapon in the other. They are held one-handed then, and two-handed when
+### Weapons in the off hand
+
+To put a melee weapon in the left hand, hold the `TwoHandModifier` button
+(by default Valheim's Use: E on keyboard, X on gamepad) while you equip it
+from the hotbar or the inventory. It replaces a shield or torch in that hand.
+Equipping without holding the button puts the weapon in the right hand, as
+usual.
+
+Valheim's two-handers also work in either hand, with a shield, torch or
+weapon in the other. They are held one-handed then, and two-handed when
 alone. Sheathing (R) and reloading keep each weapon in its hand.
 
 - **Power stance:** with two weapons of the same class, one in each hand,
