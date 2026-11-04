@@ -1,8 +1,8 @@
 # Eldenheim
 
-The Elden Ring movement and combat sandbox
-([ELDEN-RING-Combat-Rewrite](https://github.com/Funny-Bones/ELDEN-RING-Combat-Rewrite)),
-running Valheim's player. While a melee weapon or bare fists are out, the
+Eldenheim runs the Elden Ring movement and combat sandbox
+([ELDEN-RING-Combat-Rewrite](https://github.com/Funny-Bones/ELDEN-RING-Combat-Rewrite))
+on Valheim's player. While a melee weapon or bare fists are out, the
 sandbox's own simulation moves the character, dodges, jumps, attacks, guards
 and takes hits, with Elden Ring's frame data and animations. Valheim keeps
 everything else.
@@ -19,8 +19,8 @@ everything else.
 
 ## Setup (your own copy of Elden Ring)
 
-Nothing from Elden Ring or Valheim is in this repository, and none is shipped:
-the mod's data is generated from your own installed copy of Elden Ring.
+This repository contains no files from Elden Ring or Valheim, and none are
+shipped. The mod's data is generated from your own installed copy of Elden Ring.
 Shadow of the Erdtree is not needed. Its weapon styles are in the base game's own
 Data3 archive since patch 1.12, so every up-to-date copy has them.
 
@@ -68,12 +68,12 @@ The build copies the plugin and the generated files to
 elsewhere). Valheim must be closed. Never share the generated files:
 they are derived from Elden Ring.
 
-Check the C# sim against the sandbox (records the demo first):
+To check the C# sim against the sandbox, record the sandbox's demo, then
+replay it through the C# sim:
 
 ```bash
 cargo run --release --manifest-path tools/simtrace/Cargo.toml -- demo build/demo_trace.bin
 ```
-
 
 ```bash
 dotnet run --project tests/Eldenheim.Sim.Replay -c Release -- build/eldenheim_data.bin build/demo_trace.bin
@@ -84,17 +84,22 @@ dotnet run --project tests/Eldenheim.Sim.Replay -c Release -- build/eldenheim_da
 1. Find the weapon's EquipParamWeapon row: Smithbox's
    `Assets/PARAM/ER/Param Row Names/English/EquipParamWeapon.json` names them
    (the plain weapon is the row ending in `0000`).
-2. In `sandbox/`, add `(name, row)` to `WEAPONS` in `tools/extract.py`
-   (before the shield), its striking line to `BLADES`, and a stand-in shape
-   to `WEAPON_PARTS` in `src/rig.rs`, in the same order. The row's category
-   and style (byte 0xEE) pick the animations; a style with no animations in
-   the game files plays its category's.
+2. In `sandbox/`, make three additions, in the same order in each list:
+   - `(name, row)` to `WEAPONS` in `tools/extract.py`, before the shield;
+   - its striking line to `BLADES` in the same file;
+   - a stand-in shape to `WEAPON_PARTS` in `src/rig.rs`.
+
+   The row's category and style (byte 0xEE) pick the animations. A style
+   with no animations in the game files plays its category's.
 3. Rebuild the data in the order under Setup (setup.py,
    bake_unity, simtrace data and demo) and run the replay check.
 4. Add the menu name to `Settings.ErClasses` (and a note to a Movesets entry
    if it suits a Valheim weapon type).
 
-## Controls (defaults; all rebindable in F1: "Set", then press the button)
+## Controls
+
+These are the defaults. To rebind one, open F1, click "Set", then press the
+button.
 
 | Action | Keyboard / mouse | Gamepad |
 |---|---|---|
@@ -106,7 +111,7 @@ dotnet run --project tests/Eldenheim.Sim.Replay -c Release -- build/eldenheim_da
 | Crouch | Valheim's Crouch | L3 |
 | Walk (toggle) | Valheim's ToggleWalk | — |
 | Lock on (with nothing to lock: recentre the camera) | Caps Lock | R3 |
-| Reverse backstep (not locked on): backstep, then at once press a direction: S goes forward, A right, D left | — | — |
+| Reverse backstep (not locked on): backstep, then at once press a direction (S goes forward, A right, D left) | — | — |
 | Switch lock-on target | flick the mouse left/right | right stick left/right |
 | Two-hand right / left | hold Valheim's Use + Attack / Block | hold Use (X) + RB / LB |
 
@@ -116,13 +121,13 @@ weapon instead, Valheim-style. The guard can be raised while sprinting.
 
 **Left hand:** hold the two-hand modifier (Use) while equipping a melee
 weapon (hotbar or inventory) to put it in the left hand, replacing a shield or
-torch. Valheim's two-handers work in either hand too, and keep a shield,
-torch or weapon in the other (held one-handed then; two-handed when alone).
-Sheathing (R) and reloading keep each weapon in its hand.
+torch. Valheim's two-handers also work in either hand, with a shield, torch
+or weapon in the other. They are held one-handed then, and two-handed when
+alone. Sheathing (R) and reloading keep each weapon in its hand.
 
-- **Power stance:** two weapons of the same class, one in each hand: the
-  guard button plays the power-stance moveset. Sheathed, they cross on the
-  back.
+- **Power stance:** with two weapons of the same class, one in each hand,
+  the guard button plays the power-stance moveset. Sheathed, they cross on
+  the back.
 - **Paired weapons:** Valheim items that are already a pair (knuckles/claws,
   Skoll and Hati, the dual axes) take both hands and nothing else. Claws are
   held two-handed; Skoll and Hati and the dual axes play their class's power
@@ -131,12 +136,12 @@ Sheathing (R) and reloading keep each weapon in its hand.
   Valheim's equip sound.
 
 **Stamina and falls** are Valheim's: sprinting, jumping and dodging cost what
-they cost in vanilla (with the Run and Dodge skills and gear). An attack costs
-the weapon's own attack stamina for a first light attack, the others in Elden
-Ring's proportion, each hit charged to the weapon that swings it (so each
-weapon in a power stance pays its own). As in vanilla, an attack you can't pay
-for doesn't come out. Falls do Valheim's damage (100 at most); only one past 50
-ends in the heavy landing.
+they cost in vanilla (with the Run and Dodge skills and gear). A first light
+attack costs the weapon's own attack stamina, and other attacks cost Elden
+Ring's proportion of that. Each hit is charged to the weapon that swings it, so
+each weapon in a power stance pays its own. As in vanilla, an attack you can't
+pay for doesn't come out. Falls do Valheim's damage (100 at most). Only a fall
+that does more than 50 damage ends in the heavy landing.
 
 Each `Valheim:Name` default follows Valheim's own binding for that button.
 Under *2 - Controls*, `SeparateSprint` splits dodge and sprint into two
@@ -150,9 +155,9 @@ held when a menu closes or the game unpauses does nothing until it is let go
 
 **Stamina:** attacks follow Elden Ring (F1 → 7 - Stamina & Movement → `NegativeStamina`):
 any attack starts while there is stamina left, whatever it costs. One that
-empties the bar keeps it empty (flashing red) until that attack ends, so no
-chain goes on; then it refills as usual. Off, an attack needs its whole cost,
-as in Valheim. Stamina doesn't refill during an action until its
+empties the bar keeps it empty (flashing red) until that attack ends, so the
+combo can't continue; then it refills as usual. With the option off, an attack
+needs its whole cost, as in Valheim. Stamina doesn't refill during an action until its
 recovery frame.
 
 **Weapons:** each Valheim weapon type's Elden Ring moveset is chosen in F1 →
@@ -166,28 +171,34 @@ Weapons (any class can be picked); the defaults are:
   hand, or with F1 → 5 - Movesets → `ThrowSpears` the spear itself flies, leaves
   the inventory and lands where it hits, as in Valheim.
 - Knuckles and claws → Claw (Raptor Talons; or Fist, the earlier one), two-handed.
-- Two-handed: swords (the Krom too) → Claymore or Knight's Greatsword (F1 →
-  Weapons → TwoHandedSwords: Elden Ring's greatswords share a category but
-  differ by style, 125 for the Claymore, 128 for the Knight's Greatsword family and Inseparable
-  Sword); sledges → Great Hammer, axes → Greataxe. Skoll and
-  Hati → Dagger, dual axes → the one-handed axes' class, in power stance (paired weapons
-  can't be two-handed).
+- Two-handed: swords (the Krom too) → Claymore or Knight's Greatsword, chosen
+  in F1 → Weapons → TwoHandedSwords. Elden Ring's greatswords share a
+  category but differ by style: 125 for the Claymore, 128 for the Knight's
+  Greatsword family and the Inseparable Sword. Sledges → Great Hammer, axes →
+  Greataxe.
+- Paired weapons, in power stance: Skoll and Hati → Dagger, dual axes → the
+  one-handed axes' class. Paired weapons can't be two-handed.
 - Equipping, sheathing (R) and drawing play Elden Ring's swap for the hand
   that changed.
-- Poles are held where Elden Ring's reach as far: atgeirs and spears slide
-  along the shaft to match.
+- Atgeirs and spears slide along the shaft so the hand grips the point that
+  gives Elden Ring's reach.
 - Left hand: shield → Shield, torch → Torch, a weapon → its class.
-- Bows, staffs and tools hand the player back to Valheim.
+- With a bow, staff or tool out, Valheim's own combat takes over.
 
 ## Sound
 
 Swings, steps, rolls, jumps and landings use Valheim's own sounds and dust.
-The Elden Ring sounds are the guard counter's own (F1 → 9 - Sound, quieter than
-the game's mix by default), the guard break's and the parry's (`ParrySound`,
-in place of Valheim's). Each is the recording the game's own clip plays on its
-first frame (the guard break's `a000_019500` and being parried, `a000_005800`).
+Three sounds come from Elden Ring:
+
+- the guard counter (F1 → 9 - Sound; quieter than the game's mix by default);
+- the guard break;
+- being parried (`ParrySound`, in place of Valheim's).
+
+Each is the recording that the matching Elden Ring animation plays on its first
+frame (`a000_019500` for the guard break, `a000_005800` for being parried).
 The build copies them from the sandbox's `assets/player_sounds.bin` and
-`assets/sounds/`; without them those moments are Valheim's sounds alone.
+`assets/sounds/`. Without those files, the three moments play only Valheim's
+sounds.
 
 The F1 sections marked *(server)* (6 - Combat, 7 - Stamina & Movement) follow
 the server's values in multiplayer.
