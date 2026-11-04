@@ -90,6 +90,8 @@ BINDERS = {
     "/chr/c0000_a3x.anibnd.dcx": "chr/c0000_a3x.anibnd.dcx",
     "/chr/c0000_a4x.anibnd.dcx": "chr/c0000_a4x.anibnd.dcx",
     "/chr/c0000_a5x.anibnd.dcx": "chr/c0000_a5x.anibnd.dcx",
+    "/chr/c0000_a6x.anibnd.dcx": "chr/c0000_a6x.anibnd.dcx",
+    "/chr/c0000_a9x.anibnd.dcx": "chr/c0000_a9x.anibnd.dcx",
     # Shadow of the Erdtree's player styles (patched into Data3, not DLC.bdt).
     "/chr/c0000_dlc01.anibnd.dcx": "chr/c0000_dlc01.anibnd.dcx",
     "/chr/c0000_dlc02.anibnd.dcx": "chr/c0000_dlc02.anibnd.dcx",
