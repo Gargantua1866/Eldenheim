@@ -267,6 +267,11 @@ namespace Eldenheim
                 return c;
             }
             string path = Path.Combine(Plugin.Dir, "sounds", file);
+            if (!File.Exists(path))
+            {
+                // Gale flattens a package's subfolders: the recordings then sit beside the DLL.
+                path = Path.Combine(Plugin.Dir, file);
+            }
             if (Pending.Add(file) && File.Exists(path))
             {
                 StartCoroutine(Fetch(file, path));
