@@ -12,9 +12,9 @@ everything else.
 | Part | What it is |
 |---|---|
 | `sandbox/` | The sandbox itself (MIT, Funny-Bones and contributors), at the version Eldenheim's data is built from. Its tools read your game files. |
-| `src/Eldenheim.Sim` | The sandbox's `src/sim`, ported line for line to C#. |
+| `src/Eldenheim.Sim` | The sandbox's `src/sim`, ported line for line to C#. Matches the Rust sim exactly over the whole 449 s demo (`tests/Eldenheim.Sim.Replay`). |
 | `src/Eldenheim` | The BepInEx plugin. It ticks the sim at 60 Hz inside Valheim's motion step, moves the body through PhysX, and plays the animations through a playable output that writes the whole pose. |
-| `tools/simtrace` | A Rust harness that compiles the sandbox's own `sim` and `demo`. It exports the extracted data the plugin loads. |
+| `tools/simtrace` | A Rust harness that compiles the sandbox's own `sim` and `demo`. It exports the extracted data and records the demo, tick by tick. |
 | `tools/bake_unity.py` | Bakes every clip the sandbox plays as bone rotations, from your own game files. |
 
 ## Setup (your own copy of Elden Ring)
@@ -68,6 +68,17 @@ The build copies the plugin and the generated files to
 elsewhere). Valheim must be closed. Never share the generated files:
 they are derived from Elden Ring.
 
+Check the C# sim against the sandbox (records the demo first):
+
+```bash
+cargo run --release --manifest-path tools/simtrace/Cargo.toml -- demo build/demo_trace.bin
+```
+
+
+```bash
+dotnet run --project tests/Eldenheim.Sim.Replay -c Release -- build/eldenheim_data.bin build/demo_trace.bin
+```
+
 ## Adding an Elden Ring weapon class
 
 1. Find the weapon's EquipParamWeapon row: Smithbox's
@@ -78,8 +89,8 @@ they are derived from Elden Ring.
    to `WEAPON_PARTS` in `src/rig.rs`, in the same order. The row's category
    and style (byte 0xEE) pick the animations; a style with no animations in
    the game files plays its category's.
-3. Rebuild the data in the order under Setup (setup.py, bake_unity,
-   simtrace data).
+3. Rebuild the data in the order under Setup (setup.py,
+   bake_unity, simtrace data and demo) and run the replay check.
 4. Add the menu name to `Settings.ErClasses` (and a note to a Movesets entry
    if it suits a Valheim weapon type).
 
