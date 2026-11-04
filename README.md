@@ -17,6 +17,15 @@ everything else.
 | `tools/simtrace` | A Rust harness that compiles the sandbox's own `sim` and `demo`. It exports the extracted data and records the demo, tick by tick. |
 | `tools/bake_unity.py` | Bakes every clip the sandbox plays as bone rotations, from your own game files. |
 
+## Required mods
+
+- BepInEx, to load the plugin.
+- ConfigurationManager and ConditionalConfigSync, both by shudnal, to change
+  the mod's settings in game (F1).
+- Jotunn, for multiplayer.
+
+The NoWeaponDust mod by Azumatt is highly recommended.
+
 ## Setup (your own copy of Elden Ring)
 
 This repository contains no files from Elden Ring or Valheim, and none are
@@ -161,7 +170,7 @@ needs its whole cost, as in Valheim. Stamina doesn't refill during an action unt
 recovery frame.
 
 **Weapons:** each Valheim weapon type's Elden Ring moveset is chosen in F1 →
-Weapons (any class can be picked); the defaults are:
+5 - Movesets (any class can be picked; see Movesets below). The defaults are:
 - One-handed: swords → Longsword (or Shamshir), knives → Dagger, clubs →
   Morning Star (or Club, the earlier one), axes → Hand Axe (or Battle Axe,
   the earlier one), atgeirs → Halberd (or Banished Knight's Halberd), bare hands → Fist.
@@ -172,7 +181,7 @@ Weapons (any class can be picked); the defaults are:
   the inventory and lands where it hits, as in Valheim.
 - Knuckles and claws → Claw (Raptor Talons; or Fist, the earlier one), two-handed.
 - Two-handed: swords (the Krom too) → Claymore or Knight's Greatsword, chosen
-  in F1 → Weapons → TwoHandedSwords. Elden Ring's greatswords share a
+  in F1 → 5 - Movesets → TwoHandedSwords. Elden Ring's greatswords share a
   category but differ by style: 125 for the Claymore, 128 for the Knight's
   Greatsword family and the Inseparable Sword. Sledges → Great Hammer, axes →
   Greataxe.
@@ -184,6 +193,40 @@ Weapons (any class can be picked); the defaults are:
   gives Elden Ring's reach.
 - Left hand: shield → Shield, torch → Torch, a weapon → its class.
 - With a bow, staff or tool out, Valheim's own combat takes over.
+
+### Movesets
+
+There are 40 Elden Ring movesets. Any of the 39 weapon classes below can be
+picked for any Valheim weapon type in F1 → 5 - Movesets. The 40th, Torch, is
+the left hand's when it holds a torch.
+
+| Elden Ring weapon type | Classes |
+|---|---|
+| Daggers | Dagger, Erdsteel Dagger |
+| Straight swords | Longsword |
+| Greatswords | Claymore, Knight's Greatsword |
+| Colossal swords | Colossal Sword |
+| Thrusting swords | Rapier |
+| Heavy thrusting swords | Heavy Thrusting Sword, Great Épée |
+| Curved swords | Curved Sword, Shamshir |
+| Curved greatswords | Curved Greatsword |
+| Katanas | Uchigatana, Serpentbone Blade |
+| Great katanas | Great Katana, Rakshasa's Great Katana |
+| Twinblades | Twinblade, Godskin Peeler |
+| Axes | Battle Axe, Hand Axe |
+| Greataxes | Greataxe, Crescent Moon Axe |
+| Hammers | Club, Morning Star, Stone Club |
+| Flails | Flail |
+| Great hammers | Great Hammer |
+| Colossal weapons | Colossal Weapon |
+| Spears | Short Spear, Smithscript Spear |
+| Great spears | Great Spear |
+| Halberds | Halberd, Banished Knight's Halberd, Guardian's Swordspear |
+| Reapers | Reaper |
+| Whips | Whip |
+| Fists | Fist |
+| Claws | Claw, Raptor Talons |
+| Torches | Torch (left hand only) |
 
 ## Sound
 
