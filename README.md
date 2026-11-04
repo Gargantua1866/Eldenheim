@@ -82,8 +82,10 @@ elsewhere). Valheim must be closed.
 
 That folder is also a Gale package: select everything inside it (not the
 folder itself, so `manifest.json` sits at the zip's root), zip it, and use
-Gale's "Import local mod". Never share the generated files:
-they are derived from Elden Ring.
+Gale's "Import local mod". `python tools/package.py` does this for you: it
+builds into a clean folder and writes
+`build/package/Gargantua1866-Eldenheim-<version>.zip`. Never share the
+generated files: they are derived from Elden Ring.
 
 To check the C# sim against the sandbox, record the sandbox's demo, then
 replay it through the C# sim:
