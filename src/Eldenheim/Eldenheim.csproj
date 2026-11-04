@@ -67,7 +67,7 @@
   "name": "Eldenheim",
   "author": "Gargantua1866",
   "version_number": "$(ModVersion)",
-  "website_url": "https://github.com/Gargantua1866/Eldenheimpriv",
+  "website_url": "https://github.com/Gargantua1866/Eldenheim",
   "description": "Elden Ring's movement, combat and animations for Valheim's player, with data generated from your own copy of Elden Ring.",
   "dependencies": ["denikson-BepInExPack_Valheim-5.4.2351"]
 }</Manifest>

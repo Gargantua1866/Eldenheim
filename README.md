@@ -7,6 +7,8 @@ sandbox's own simulation moves the character, dodges, jumps, attacks, guards
 and takes hits, with Elden Ring's frame data and animations. Valheim keeps
 everything else.
 
+[![Eldenheim showcase video](https://img.youtube.com/vi/2Gdm8KkQkZU/maxresdefault.jpg)](https://youtu.be/2Gdm8KkQkZU)
+
 ## How it is built
 
 | Part | What it is |
