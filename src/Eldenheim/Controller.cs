@@ -838,7 +838,9 @@ namespace Eldenheim
                 _leftShield = Left != null && Left.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shield;
                 if (_chooser != null)
                 {
-                    _chooser.ShieldStyle = _leftShield ? ShieldStyle(Left) : 0;
+                    // An empty left hand guards as ER's fist does: its EquipParamWeapon row
+                    // (21000000) has guard style 2, the small shield's forearm raised in front.
+                    _chooser.ShieldStyle = _leftShield ? ShieldStyle(Left) : Left == null ? 2 : 0;
                 }
                 _bladeLeft = twoLeft || Left == null ? Vector3.zero
                     : _leftShield ? ShieldFace(_retarget.LeftAttach) : BladeAxis(_retarget.LeftAttach, Left, out _rangeLeft, out _radiusLeft);
