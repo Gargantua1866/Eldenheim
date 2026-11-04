@@ -18,7 +18,7 @@ class Event:
 class Anim:
     id: int
     events: list = field(default_factory=list)
-    # Another animation in the same file this one takes its events from, if any.
+    # Full id (category * 1000000 + id) of the animation this one imports, events and HKX, if any.
     import_from: int | None = None
     # Full id (category * 1000000 + id) of the animation whose HKX this one plays, if not its own.
     hkx_from: int | None = None
@@ -39,8 +39,10 @@ def parse(data: bytes) -> dict[int, Anim]:
         anim = Anim(anim_id)
         kind, body = struct.unpack_from("<qq", data, file_off)
         if kind == 1:
-            ref, = struct.unpack_from("<i", data, body)
-            anim.import_from = ref
+            # body holds a pointer, then the imported animation's full id.
+            ref, = struct.unpack_from("<i", data, body + 8)
+            if ref >= 0:
+                anim.import_from = ref
         else:
             # Full id of the animation whose HKX this one plays: category * 1000000 + id.
             imports_hkx = data[body + 9]

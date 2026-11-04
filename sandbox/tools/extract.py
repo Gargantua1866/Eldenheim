@@ -389,20 +389,29 @@ class Source:
 
     def anim(self, file, anim_id):
         """The animation whose events apply, following event imports."""
-        table = self.table(file)
-        anim = table.get(anim_id)
+        return self._imported(file, anim_id)[2]
+
+    def _imported(self, file, anim_id):
+        """(file, id, entry) at the end of the import chain; imports can cross files."""
+        anim = self.table(file).get(anim_id)
         for _ in range(4):
-            if anim is None or anim.import_from is None or anim.import_from not in table:
+            if anim is None or anim.import_from is None:
                 break
-            anim = table[anim.import_from]
-        return anim
+            category, target = divmod(anim.import_from, 1000000)
+            nxt = self.table("a%d" % category).get(target)
+            if nxt is None:
+                break
+            file, anim_id, anim = "a%d" % category, target, nxt
+        return file, anim_id, anim
 
     def hkx_name(self, file, anim_id):
-        """Name of the HKX this animation plays: its own, or the one it borrows."""
+        """Name of the HKX this animation plays: its own, the imported one's, or the one it borrows."""
         own = clip_name(file, anim_id)
         if own in self.hkx:
             return own
-        entry = self.table(file).get(anim_id)
+        file, anim_id, entry = self._imported(file, anim_id)
+        if clip_name(file, anim_id) in self.hkx:
+            return clip_name(file, anim_id)
         if entry is not None and entry.hkx_from is not None:
             borrowed = "a%03d_%06d" % divmod(entry.hkx_from, 1000000)
             if borrowed in self.hkx:
@@ -500,7 +509,7 @@ def speed_literal(anim):
 
 
 def blend_frames(src, file, anim_id):
-    entry = src.table(file).get(anim_id)
+    entry = src.anim(file, anim_id)
     blends = [e.end * 30.0 for e in entry.events if e.type == EVENT_BLEND] if entry else []
     return blends[0] if blends else 4.0
 

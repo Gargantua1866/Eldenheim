@@ -1156,7 +1156,7 @@ fn every_weapon_class_has_its_left_hand_and_paired_attacks() {
         assert!(paired.hits.len() >= 2, "{} paired", info.name);
         assert!(moveset.air_paired().is_some(), "{} paired jump attack", info.name);
     }
-    assert_eq!(without_pair, ["Curved Greatsword", "Torch"]);
+    assert_eq!(without_pair, ["Torch"]);
 }
 
 #[test]
