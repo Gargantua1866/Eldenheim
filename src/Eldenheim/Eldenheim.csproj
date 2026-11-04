@@ -58,6 +58,20 @@
     </ItemGroup>
     <Copy SourceFiles="$(SandboxDir)\assets\player_sounds.bin" DestinationFolder="$(PluginDir)" Condition="Exists('$(SandboxDir)\assets\player_sounds.bin')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(ErSound)" DestinationFolder="$(PluginDir)\sounds" SkipUnchangedFiles="true" />
+    <!-- Thunderstore/Gale package files: zip the folder's contents (manifest.json at the zip root) for Gale's "Import local mod". -->
+    <PropertyGroup>
+      <ModVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(ProjectDir)Plugin.cs')), 'BepInPlugin\(Guid, "Eldenheim", "([\d.]+)"\)').Groups[1].Value)</ModVersion>
+      <Manifest>{
+  "name": "Eldenheim",
+  "author": "Gargantua1866",
+  "version_number": "$(ModVersion)",
+  "website_url": "https://github.com/Gargantua1866/Eldenheimpriv",
+  "description": "Elden Ring's movement, combat and animations for Valheim's player, with data generated from your own copy of Elden Ring.",
+  "dependencies": ["denikson-BepInExPack_Valheim-5.4.2351"]
+}</Manifest>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(PluginDir)\manifest.json" Lines="$(Manifest)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <Copy SourceFiles="$(ProjectDir)icon.png;$(ProjectDir)..\..\README.md" DestinationFolder="$(PluginDir)" SkipUnchangedFiles="true" />
     <Message Importance="high" Text="Deployed $(TargetFileName) to $(PluginDir)" />
   </Target>
 

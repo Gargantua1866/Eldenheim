@@ -74,7 +74,12 @@ the .NET SDK, and Valheim with BepInEx. Run everything from this folder.
 
 The build copies the plugin and the generated files to
 `C:\Program Files (x86)\Steam\steamapps\common\Valheim\BepInEx\plugins\Eldenheim` (`-p:ValheimDir=...` for
-elsewhere). Valheim must be closed. Never share the generated files:
+elsewhere). Valheim must be closed.
+
+That folder is also a Gale package: select everything inside it (not the
+folder itself, so `manifest.json` sits at the zip's root), zip it, and use
+Gale's "Import local mod". Gale shows the name, author, version and
+description from `manifest.json`. Never share the generated files:
 they are derived from Elden Ring.
 
 To check the C# sim against the sandbox, record the sandbox's demo, then
