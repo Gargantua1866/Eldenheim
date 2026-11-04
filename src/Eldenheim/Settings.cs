@@ -104,6 +104,7 @@ namespace Eldenheim
             "Whip",
             "Fist",
             "Claw", "Raptor Talons",
+            "Torch",
         };
 
         // Setting key, default class, what it covers and the notable choices.
@@ -277,7 +278,7 @@ namespace Eldenheim
                 "On (Elden Ring): any attack can start while there is stamina left, whatever it costs. One that runs the bar dry leaves it " +
                 "empty (flashing red) until that attack is over, so no chain goes on and the next press is a first attack; then it refills as usual. " +
                 "Off (Valheim): an attack needs its whole cost.", balance);
-            StaminaRegenRate = Bind(c, STAMINA, "StaminaRegenRate", 150,
+            StaminaRegenRate = Bind(c, STAMINA, "StaminaRegenRate", 100,
                 new ConfigDescription("Stamina regeneration, in percent: Valheim's own world setting (setkey staminaregenrate), applied while Eldenheim is enabled. 100 = vanilla.",
                     new AcceptableValueRange<int>(25, 400)), balance);
             SneakStamina = Bind(c, STAMINA, "SneakStamina", true,
