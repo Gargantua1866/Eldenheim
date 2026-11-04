@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>Eldenheim</AssemblyName>
+    <RootNamespace>Eldenheim</RootNamespace>
+    <Nullable>disable</Nullable>
+    <Version>0.1.0</Version>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <ValheimDir Condition="'$(ValheimDir)' == ''">C:\Games\Valheim</ValheimDir>
+    <ManagedDir>$(ValheimDir)\valheim_Data\Managed</ManagedDir>
+    <PluginDir>$(ValheimDir)\BepInEx\plugins\Eldenheim</PluginDir>
+    <BuildDir>$(ProjectDir)..\..\build</BuildDir>
+    <!-- The sandbox (sandbox\): its baked player_sounds.bin and sounds\ give the guard counter its own sound. -->
+    <SandboxDir Condition="'$(SandboxDir)' == ''">$(ProjectDir)..\..\sandbox</SandboxDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <ProjectReference Include="..\Eldenheim.Sim\Eldenheim.Sim.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx" HintPath="$(ValheimDir)\BepInEx\core\BepInEx.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(ValheimDir)\BepInEx\core\0Harmony.dll" Private="false" />
+    <Reference Include="assembly_valheim" HintPath="$(ManagedDir)\assembly_valheim.dll" Private="false" />
+    <Reference Include="assembly_utils" HintPath="$(ManagedDir)\assembly_utils.dll" Private="false" />
+    <Reference Include="netstandard" HintPath="$(ManagedDir)\netstandard.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(ManagedDir)\UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(ManagedDir)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.PhysicsModule" HintPath="$(ManagedDir)\UnityEngine.PhysicsModule.dll" Private="false" />
+    <Reference Include="UnityEngine.AnimationModule" HintPath="$(ManagedDir)\UnityEngine.AnimationModule.dll" Private="false" />
+    <Reference Include="UnityEngine.DirectorModule" HintPath="$(ManagedDir)\UnityEngine.DirectorModule.dll" Private="false" />
+    <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(ManagedDir)\UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="UnityEngine.IMGUIModule" HintPath="$(ManagedDir)\UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(ManagedDir)\UnityEngine.TextRenderingModule.dll" Private="false" />
+    <Reference Include="UnityEngine.ParticleSystemModule" HintPath="$(ManagedDir)\UnityEngine.ParticleSystemModule.dll" Private="false" />
+    <Reference Include="Unity.InputSystem" HintPath="$(ManagedDir)\Unity.InputSystem.dll" Private="false" />
+    <Reference Include="assembly_guiutils" HintPath="$(ManagedDir)\assembly_guiutils.dll" Private="false" />
+    <Reference Include="UnityEngine.ScreenCaptureModule" HintPath="$(ManagedDir)\UnityEngine.ScreenCaptureModule.dll" Private="false" />
+    <Reference Include="UnityEngine.AudioModule" HintPath="$(ManagedDir)\UnityEngine.AudioModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UnityWebRequestModule" HintPath="$(ManagedDir)\UnityEngine.UnityWebRequestModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UnityWebRequestAudioModule" HintPath="$(ManagedDir)\UnityEngine.UnityWebRequestAudioModule.dll" Private="false" />
+    <Reference Include="MagicaClothV2" HintPath="$(ManagedDir)\MagicaClothV2.dll" Private="false" />
+    <Reference Include="Unity.Mathematics" HintPath="$(ManagedDir)\Unity.Mathematics.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- -p:SkipDeploy=true compiles only (the copy fails while Valheim is running).
+       The generated data comes from build/: never commit or ship it. -->
+  <Target Name="Deploy" AfterTargets="Build" Condition="'$(SkipDeploy)' != 'true' And Exists('$(ValheimDir)')">
+    <MakeDir Directories="$(PluginDir)" />
+    <Copy SourceFiles="$(TargetPath);$(TargetDir)Eldenheim.Sim.dll" DestinationFolder="$(PluginDir)" />
+    <Copy SourceFiles="$(BuildDir)\eldenheim_data.bin" DestinationFolder="$(PluginDir)" Condition="Exists('$(BuildDir)\eldenheim_data.bin')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(BuildDir)\eldenheim_anims_all.bin" DestinationFolder="$(PluginDir)" Condition="Exists('$(BuildDir)\eldenheim_anims_all.bin')" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <ErSound Include="$(SandboxDir)\assets\sounds\*.ogg" />
+    </ItemGroup>
+    <Copy SourceFiles="$(SandboxDir)\assets\player_sounds.bin" DestinationFolder="$(PluginDir)" Condition="Exists('$(SandboxDir)\assets\player_sounds.bin')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ErSound)" DestinationFolder="$(PluginDir)\sounds" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Deployed $(TargetFileName) to $(PluginDir)" />
+  </Target>
+
+</Project>

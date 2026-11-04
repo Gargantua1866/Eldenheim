@@ -1,0 +1,18 @@
+[package]
+name = "simtrace"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Compiles the sandbox's own sim and demo (by #[path], see src/main.rs), so the
+# data and the reference traces Eldenheim tests against come from the very
+# code the sandbox runs. Same Bevy as the sandbox: build it with
+# CARGO_TARGET_DIR pointing at the sandbox's target to reuse its build.
+[dependencies]
+bevy = "0.19.1"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

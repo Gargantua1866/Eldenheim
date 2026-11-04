@@ -1,0 +1,9 @@
+bin/
+obj/
+build/
+*.bin
+__pycache__/
+*.user
+target/
+!sandbox/tools/ww2ogg/*.bin
+er-files/

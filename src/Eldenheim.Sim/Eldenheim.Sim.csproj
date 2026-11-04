@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The sandbox's simulation, ported from src/sim (Rust). No Unity
+       reference, so it builds and is tested outside the game. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Eldenheim.Sim</RootNamespace>
+  </PropertyGroup>
+
+</Project>
