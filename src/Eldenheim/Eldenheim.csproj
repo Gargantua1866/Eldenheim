@@ -54,8 +54,10 @@
     <Copy SourceFiles="$(BuildDir)\eldenheim_data.bin" DestinationFolder="$(PluginDir)" Condition="Exists('$(BuildDir)\eldenheim_data.bin')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(BuildDir)\eldenheim_anims_all.bin" DestinationFolder="$(PluginDir)" Condition="Exists('$(BuildDir)\eldenheim_anims_all.bin')" SkipUnchangedFiles="true" />
     <ItemGroup>
-      <ErSound Include="$(SandboxDir)\assets\sounds\*.ogg" />
+      <!-- Only the recordings the plugin plays (tools/pick_sounds.py). -->
+      <ErSound Include="$(BuildDir)\sounds\*.ogg" />
     </ItemGroup>
+    <RemoveDir Directories="$(PluginDir)\sounds" />
     <Copy SourceFiles="$(SandboxDir)\assets\player_sounds.bin" DestinationFolder="$(PluginDir)" Condition="Exists('$(SandboxDir)\assets\player_sounds.bin')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(ErSound)" DestinationFolder="$(PluginDir)\sounds" SkipUnchangedFiles="true" />
     <!-- Thunderstore/Gale package files: zip the folder's contents (manifest.json at the zip root) for Gale's "Import local mod". -->

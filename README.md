@@ -66,6 +66,10 @@ the .NET SDK, and Valheim with BepInEx. Run everything from this folder.
    cargo run --release --manifest-path tools/simtrace/Cargo.toml -- data build/eldenheim_data.bin
    ```
 
+   ```bash
+   python tools/pick_sounds.py
+   ```
+
 5. Build the plugin:
 
    ```bash
@@ -242,8 +246,9 @@ Three sounds come from Elden Ring:
 
 Each is the recording that the matching Elden Ring animation plays on its first
 frame (`a000_019500` for the guard break, `a000_005800` for being parried).
-The build copies them from the sandbox's `assets/player_sounds.bin` and
-`assets/sounds/`. Without those files, the three moments play only Valheim's
+`tools/pick_sounds.py` copies those three recordings from the sandbox's
+`assets/sounds/` into `build/sounds/`, and the build copies them and
+`assets/player_sounds.bin` to the plugin. Without those files, the three moments play only Valheim's
 sounds.
 
 The F1 sections marked *(server)* (6 - Combat, 7 - Stamina & Movement) follow

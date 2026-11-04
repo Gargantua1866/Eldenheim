@@ -33,7 +33,7 @@ files = [
     ("plugins/eldenheim_anims_all.bin", BUILD / "eldenheim_anims_all.bin"),
     ("plugins/player_sounds.bin", SANDBOX / "assets" / "player_sounds.bin"),
 ]
-files += [(f"plugins/sounds/{p.name}", p) for p in sorted((SANDBOX / "assets" / "sounds").glob("*.ogg"))]
+files += [(f"plugins/sounds/{p.name}", p) for p in sorted((BUILD / "sounds").glob("*.ogg"))]
 if CONFIG.exists():
     files.append(("config/com.gargantua.eldenheim.cfg", CONFIG))
 
