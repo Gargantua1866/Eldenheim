@@ -21,8 +21,7 @@ everything else.
 
 Nothing from Elden Ring or Valheim is in this repository, and none is shipped:
 the mod's data is generated from your own installed copy of Elden Ring.
-Shadow of the Erdtree is not needed. Its weapon styles (the Smithscript
-Spear's, the Raptor Talons' and the great katanas') are in the base game's own
+Shadow of the Erdtree is not needed. Its weapon styles are in the base game's own
 Data3 archive since patch 1.12, so every up-to-date copy has them.
 
 You need Python 3.10+ (`python -m pip install pycryptodome zstandard`), Rust,
@@ -65,9 +64,8 @@ the .NET SDK, and Valheim with BepInEx. Run everything from this folder.
    ```
 
 The build copies the plugin and the generated files to
-`C:\Games\Valheim\BepInEx\plugins\Eldenheim` (`-p:ValheimDir=...` for
-elsewhere). Valheim must be closed. Don't run Soulsheim or EldenRingCombat
-alongside it: they patch the same code. Never share the generated files:
+`C:\Program Files (x86)\Steam\steamapps\common\Valheim\BepInEx\plugins\Eldenheim` (`-p:ValheimDir=...` for
+elsewhere). Valheim must be closed. Never share the generated files:
 they are derived from Elden Ring.
 
 Check the C# sim against the sandbox (records the demo first):

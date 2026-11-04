@@ -8,7 +8,7 @@
     <Nullable>disable</Nullable>
     <Version>0.1.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <ValheimDir Condition="'$(ValheimDir)' == ''">C:\Games\Valheim</ValheimDir>
+    <ValheimDir Condition="'$(ValheimDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</ValheimDir>
     <ManagedDir>$(ValheimDir)\valheim_Data\Managed</ManagedDir>
     <PluginDir>$(ValheimDir)\BepInEx\plugins\Eldenheim</PluginDir>
     <BuildDir>$(ProjectDir)..\..\build</BuildDir>
