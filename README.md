@@ -78,8 +78,7 @@ elsewhere). Valheim must be closed.
 
 That folder is also a Gale package: select everything inside it (not the
 folder itself, so `manifest.json` sits at the zip's root), zip it, and use
-Gale's "Import local mod". Gale shows the name, author, version and
-description from `manifest.json`. Never share the generated files:
+Gale's "Import local mod". Never share the generated files:
 they are derived from Elden Ring.
 
 To check the C# sim against the sandbox, record the sandbox's demo, then
@@ -201,9 +200,8 @@ recovery frame.
 
 ### Movesets
 
-There are 40 Elden Ring movesets. Any of the 39 weapon classes below can be
-picked for any Valheim weapon type in F1 → 5 - Movesets. The 40th, Torch, is
-the left hand's when it holds a torch.
+There are 40 Elden Ring movesets in the mod. Any of the 39 weapon classes below can be
+picked for any Valheim weapon type in F1 → 5 - Movesets + the Torch
 
 | Elden Ring weapon type | Classes |
 |---|---|
@@ -231,7 +229,7 @@ the left hand's when it holds a torch.
 | Whips | Whip |
 | Fists | Fist |
 | Claws | Claw, Raptor Talons |
-| Torches | Torch (left hand only) |
+| Torches | Torch |
 
 ## Sound
 
