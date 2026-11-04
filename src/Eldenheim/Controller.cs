@@ -2943,7 +2943,9 @@ namespace Eldenheim
             // (Not paired items: each hand holds its own axe, knife or claw.)
             // Not while a swap plays: the hands trade the weapon around the
             // body, and a hand pinned to the handle drags its arm through the torso.
-            bool gripping = !Hands.IsPair(Right) && !p.SwapState.HasValue && (p.Grip != Grip.OneHand || Chooser.GuardsTwoHanded(p));
+            // Bare fists have no handle to grip.
+            bool gripping = !Hands.IsPair(Right) && !p.SwapState.HasValue && p.Weapon != ErData.FIST
+                            && (p.Grip != Grip.OneHand || Chooser.GuardsTwoHanded(p));
             // Through a jump (take-off, the air, falls and the landing; not jump
             // attacks, which have their own grip) a two-handed weapon stays in
             // both hands, fading back to the clip's own grip after.

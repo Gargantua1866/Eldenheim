@@ -355,7 +355,9 @@ namespace Eldenheim.Anim
             _jumpHold = Mathf.Clamp01(_jumpHold + (jumping ? step : -step));
             Overlay(ClipName(stance, IDLE), null, time, _leftArm, _rightArm, _jumpHold);
             string guardClip;
-            if (twoHanded)
+            // Bare fists, two-handed too, have no handle: they guard as the empty left hand does.
+            bool fists = p.Weapon == ErData.FIST;
+            if (twoHanded && !fists)
             {
                 guardClip = ClipName(stance, GUARD);
                 Overlay(guardClip, null, time, _leftArm, _rightArm, _guard);
@@ -374,7 +376,7 @@ namespace Eldenheim.Anim
                 Overlay(guardClip, null, time, _leftArm, null, _guard);
             }
             GuardClip = guardClip;
-            GuardWeight = twoHanded || p.GuardsWithRight() ? _guard : 0f;
+            GuardWeight = (twoHanded && !fists) || p.GuardsWithRight() ? _guard : 0f;
             if (GuardWeight > 0f && _lHand >= 0 && _rWeapon >= 0)
             {
                 GuardAlong = Vector3.Dot(_layer.Pos[_lHand] - _layer.Pos[_rWeapon], _layer.Rot[_rWeapon] * Vector3.up);
