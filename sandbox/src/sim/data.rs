@@ -392,6 +392,9 @@ pub struct Hit {
     /// The blade's two ends on each frame from `from` (rounded down) to `to`
     /// (rounded up), as [x, y, z, x, y, z] in the character's own space.
     pub blade: &'static [[f32; 6]],
+    /// The weapon is thrown here (the Smithscript weapons): a host that can
+    /// launch projectiles fires one; the sandbox strikes with the blade.
+    pub throw: bool,
 }
 
 /// The ends of a blade at `frame`, in the character's own space, from samples

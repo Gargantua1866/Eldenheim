@@ -91,6 +91,8 @@ namespace Eldenheim.Sim
     {
         public float From, To, Mv, GuardDamage, Stamina, Stop, Radius;
         public float[][] Blade;
+        /// <summary>The weapon is thrown here (the Smithscript weapons).</summary>
+        public bool Throw;
     }
 
     public class AirAttackDef

@@ -81,48 +81,61 @@ namespace Eldenheim
         {
             // In the order Elden Ring lists weapon types; a class's own styles after it.
             "Dagger", "Erdsteel Dagger",
-            "Longsword",
+            "Smithscript Dagger",
+            "Longsword", "Warhawk's Talon", "Carian Knight's Sword",
+            "Milady",
             "Claymore", "Knight's Greatsword",
             "Colossal Sword",
             "Rapier",
             "Heavy Thrusting Sword", "Great Épée",
             "Curved Sword", "Shamshir",
-            "Curved Greatsword",
-            "Uchigatana", "Serpentbone Blade",
+            "Curved Greatsword", "Zamor Curved Sword",
+            "Uchigatana", "Serpentbone Blade", "Meteoric Ore Blade",
             "Great Katana", "Rakshasa's Great Katana",
             "Twinblade", "Godskin Peeler",
-            "Battle Axe", "Hand Axe",
+            "Battle Axe", "Hand Axe", "Warped Axe", "Smithscript Axe",
             "Greataxe", "Crescent Moon Axe",
             "Club", "Morning Star", "Stone Club",
             "Flail",
-            "Great Hammer",
+            "Great Hammer", "Smithscript Hammer",
             "Colossal Weapon",
-            "Short Spear", "Smithscript Spear",
+            "Short Spear", "Smithscript Spear", "Cross-Naginata",
             "Great Spear",
             "Halberd", "Banished Knight's Halberd", "Guardian's Swordspear",
             "Reaper",
             "Whip",
             "Fist",
+            "Dryleaf Arts", "Dane's Footwork",
             "Claw", "Raptor Talons",
+            "Beast Claw",
             "Torch",
         };
 
-        // Setting key, default class, what it covers and the notable choices.
+        // Setting key, default class, what it covers and the notable choices. Listed in this order.
         private static readonly string[][] Movesets =
         {
-            new[] { "OneHandedSwords", "Longsword", "Valheim's one-handed swords. Longsword: Elden Ring's straight swords. Shamshir: its curved sword's style (sweeping slashes)." },
+            new[] { "BareHands", "Fist", "Nothing in the hands. Fist: Elden Ring's fists (the Caestus's moveset). Dryleaf Arts, Dane's Footwork: the hand-to-hand arts, " +
+                                        "punching and kicking (held in both hands, as knuckles are; Dane's Footwork kicks more)." },
+            new[] { "OneHandedSwords", "Longsword", "Valheim's one-handed swords. Longsword: Elden Ring's straight swords. Shamshir: its curved sword's style (sweeping slashes). " +
+                                                    "Warhawk's Talon, Carian Knight's Sword: straight swords of their own styles." },
             new[] { "TwoHandedSwords", "Claymore", "Valheim's two-handed swords (the Krom...). Claymore: Elden Ring's greatsword (style 125). " +
-                                                   "Knight's Greatsword: that family and the Inseparable Sword (style 128)." },
-            new[] { "Knives", "Dagger", "Valheim's knives, Skoll and Hati included (a pair plays the class's power stance)." },
+                                                   "Knight's Greatsword: that family and the Inseparable Sword (style 128). Milady: a light greatsword. " +
+                                                   "Zamor Curved Sword: a curved greatsword of its own style." },
+            new[] { "Knives", "Dagger", "Valheim's knives, Skoll and Hati included (a pair plays the class's power stance). " +
+                                        "Smithscript Dagger: every attack throws the knife, which reforms in the hand." },
             new[] { "OneHandedClubs", "Morning Star", "Valheim's one-handed clubs and maces. Morning Star: the hammer category's own heavies. " +
                                                        "Club: the earlier moveset (the Mace's style). Stone Club: its own style." },
-            new[] { "TwoHandedClubs", "Great Hammer", "Valheim's sledges." },
+            new[] { "TwoHandedClubs", "Great Hammer", "Valheim's sledges. Smithscript Hammer: its heavies spin and throw the sledge, which slams " +
+                                                      "(its area blow) where it lands and reforms in the hand." },
             new[] { "OneHandedAxes", "Hand Axe", "Valheim's one-handed axes, and the dual axes (as a power stance). Hand Axe: its style (a170). " +
-                                                  "Battle Axe: the earlier moveset (the axe category's own)." },
+                                                  "Battle Axe: the earlier moveset (the axe category's own). Warped Axe: its own style. " +
+                                                  "Smithscript Axe: its heavies throw the axe, which reforms in the hand." },
             new[] { "TwoHandedAxes", "Greataxe", "Valheim's battleaxes." },
             new[] { "Polearms", "Halberd", "Valheim's atgeirs. Halberd: the category's own moveset. Banished Knight's Halberd: its style (a210, swung like a great spear). Guardian's Swordspear: its own style." },
-            new[] { "Spears", "Smithscript Spear", "Valheim's spears. Smithscript Spear: its heavy attacks throw the spear (see ThrowSpears); any other class swings it." },
-            new[] { "Knuckles", "Claw", "Valheim's knuckles and claws, held two-handed. Claw: the claw category's moveset (the Hookclaws'). Raptor Talons: its style (a227). Fist: the earlier moveset (the Caestus)." },
+            new[] { "Spears", "Smithscript Spear", "Valheim's spears. Smithscript Spear: its heavy attacks throw the spear, which reforms in the hand " +
+                                                   "(with ThrowSpears it flies off for good); any other class swings it. Cross-Naginata: a spear of its own style." },
+            new[] { "Knuckles", "Claw", "Valheim's knuckles and claws, held two-handed. Claw: the claw category's moveset (the Hookclaws'). Raptor Talons: its style (a227). " +
+                                        "Beast Claw: Shadow of the Erdtree's beast claws. Fist: the earlier moveset (the Caestus)." },
         };
 
         /// <summary>Menu names that differ from the sandbox class they play.</summary>
@@ -235,6 +248,7 @@ namespace Eldenheim
                 Gamepad["TwoHandModifier"].Value = "Valheim:JoyUse";
             }
 
+            int movesetOrder = Movesets.Length;
             foreach (string[] m in Movesets)
             {
                 // A saved choice under an earlier name keeps its moveset.
@@ -248,7 +262,8 @@ namespace Eldenheim
                 }
                 // In Elden Ring's order (renamed saved values are mapped above).
                 ConfigEntry<string> entry = Bind(c, MOVESETS, m[0], m[1],
-                    new ConfigDescription(m[2] + " Any Elden Ring class can be picked.", new AcceptableValueList<string>(ErClasses)), weapons);
+                    new ConfigDescription(m[2] + " Any Elden Ring class can be picked.", new AcceptableValueList<string>(ErClasses),
+                        new ConfigurationManagerAttributes { Order = movesetOrder-- }), weapons);
                 entry.SettingChanged += (_, __) => MovesetVersion++;
                 Moveset[m[0]] = entry;
             }

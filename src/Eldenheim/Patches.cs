@@ -40,6 +40,7 @@ namespace Eldenheim
             Try(h, typeof(Character), nameof(Character.OnAutoJump), prefix: nameof(AutoJump));
             Try(h, typeof(Character), nameof(Character.SetTempParent), postfix: nameof(TempParent));
             Try(h, typeof(Projectile), "UpdateVisual", prefix: nameof(ProjectileVisual));
+            Try(h, typeof(Projectile), "OnHit", postfix: nameof(ProjectileHit));
             try
             {
                 h.Patch(AccessTools.Method(typeof(Player), "UpdateStats", new[] { typeof(float) }),
@@ -120,6 +121,9 @@ namespace Eldenheim
 
         /// <summary>Every client: a weapon thrown on a borrowed spear projectile shows its own model (Combat.ThrownModel).</summary>
         private static void ProjectileVisual(Projectile __instance) => Combat.ShowThrownModel(__instance);
+
+        /// <summary>A thrown sledge (Smithscript Hammer) slams where it struck.</summary>
+        private static void ProjectileHit(Projectile __instance, Collider collider, Vector3 hitPoint) => Combat.ThrownImpact(__instance, collider, hitPoint);
 
         /// <summary>A catapult holds the player (Catapult.CollectLaunchCharacters) and throws it: Valheim's physics until a move.</summary>
         private static void TempParent(Character __instance)

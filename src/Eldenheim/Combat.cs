@@ -186,7 +186,8 @@ namespace Eldenheim
         private void GroundSlam(VPlayer vp, SimPlayer p, Hit[] hits, Blade blade, List<string> log)
         {
             ItemDrop.ItemData weapon = Item(vp, blade);
-            if (hits.Length == 0 || _slammed.Count > 0 || blade == null || !blade.Valid || !Slams(weapon) || !Heavy(p))
+            // (Not once the sledge is thrown: the head that would meet the ground is in the air.)
+            if (hits.Length == 0 || _slammed.Count > 0 || blade == null || !blade.Valid || !Slams(weapon) || !Heavy(p) || ThrownHands(p).Right)
             {
                 return;
             }
@@ -210,15 +211,54 @@ namespace Eldenheim
         /// <summary>Where a throw aims (the lock-on target), or null: the camera's way.</summary>
         public static Vector3? AimAt;
 
-        /// <summary>The Smithscript Spear's heavies throw it (their hit window is the throw).</summary>
-        private static bool IsThrow(SimPlayer p)
+        /// <summary>A thrown hit's damage and poise scales, taken as it leaves the hand (the attack may be over when it lands).</summary>
+        public sealed class Thrown
         {
-            if (p.State != StateKind.Act || !p.Act.Id.IsAttack || ErData.Weapons[p.Act.Id.Moveset.Weapon].Name != "Smithscript Spear")
+            public float Motion, Guard;
+        }
+
+        /// <summary>Thrown sledges still in flight, and the slam each makes where it lands.</summary>
+        private static readonly Dictionary<Projectile, System.Action<Collider, Vector3>> PendingSlams =
+            new Dictionary<Projectile, System.Action<Collider, Vector3>>();
+
+        /// <summary>Projectile.OnHit (on the thrower's client): a thrown sledge slams where it struck.</summary>
+        public static void ThrownImpact(Projectile projectile, Collider collider, Vector3 point)
+        {
+            if (projectile != null && PendingSlams.TryGetValue(projectile, out System.Action<Collider, Vector3> slam))
             {
-                return false;
+                PendingSlams.Remove(projectile);
+                slam(collider, point);
             }
-            AttackKind k = p.Act.Id.Kind;
-            return k == AttackKind.Heavy1 || k == AttackKind.Heavy1Charge || k == AttackKind.RunHeavy;
+        }
+
+        /// <summary>The Smithscript weapons' throws: hit windows the data flags as throws (tools/extract.py THROWS).</summary>
+        private static bool IsThrow(SimPlayer p, int index)
+        {
+            Hit[] hits = p.State == StateKind.Act && p.Act.Id.IsAttack && !p.AirAttackState.HasValue ? p.Act.Id.Def().Hits : null;
+            return hits != null && index < hits.Length && hits[index].Throw;
+        }
+
+        /// <summary>
+        /// Frames a thrown Smithscript weapon is gone from the hand before it
+        /// reforms there, as ER's do (a spear thrown away for good, ThrowSpears,
+        /// leaves the inventory instead). ESTIMATE, by eye from ER.
+        /// </summary>
+        public const float ThrowReturnFrames = 20f;
+
+        /// <summary>Whether a throw has emptied the right / left hand at this frame (every client works it out from the sim).</summary>
+        public static (bool Right, bool Left) ThrownHands(SimPlayer p)
+        {
+            if (p.State != StateKind.Act || !p.Act.Id.IsAttack || p.AirAttackState.HasValue)
+            {
+                return (false, false);
+            }
+            bool gone = p.Act.Id.Def().Hits.Any(h => h.Throw && p.Act.F >= h.From && p.Act.F < h.From + ThrowReturnFrames);
+            if (!gone)
+            {
+                return (false, false);
+            }
+            string kind = p.Act.Id.Kind.ToString();
+            return kind.StartsWith("Left") ? (false, true) : kind.StartsWith("Paired") ? (true, true) : (true, false);
         }
 
         /// <summary>
@@ -289,6 +329,33 @@ namespace Eldenheim
             // the harpoon: its line stays in the hand.
             bool consume = Settings.ThrowSpears.Value && throwing.m_consumeItem && !IsHarpoon(weapon) && !borrowed;
             go.GetComponent<IProjectile>()?.Setup(vp, dir * throwing.m_projectileVel, throwing.m_attackHitNoise, data, consume ? weapon : null, null);
+            Projectile projectile = go.GetComponent<Projectile>();
+            if (Slams(weapon) && projectile != null)
+            {
+                // A thrown sledge (the Smithscript Hammer's throws) slams where it
+                // lands: its shockwave and area blow, scaled as this hit's are.
+                var thrown = new Thrown { Motion = MotionScale(p, hit), Guard = GuardScale(p, hit) };
+                foreach (Projectile gone in PendingSlams.Keys.Where(k => k == null).ToList())
+                {
+                    PendingSlams.Remove(gone);
+                }
+                PendingSlams[projectile] = (collider, at) =>
+                {
+                    // The struck target already took the projectile's own blow; the
+                    // slam's state (a swing's first contact) is left as it was.
+                    Vector3? slamAt = _slamAt;
+                    _hitThisWindow.Clear();
+                    GameObject direct = collider != null ? Projectile.FindHitObject(collider) : null;
+                    if (direct != null)
+                    {
+                        _hitThisWindow.Add(direct);
+                    }
+                    var lines = new List<string>();
+                    Slam(vp, p, weapon, hit, at, hit.Stop * Consts.HIT_STOP_SCALE, lines, thrown);
+                    _slamAt = slamAt;
+                    lines.ForEach(Plugin.Trace);
+                };
+            }
             Quaternion facing = Quaternion.LookRotation(dir);
             throwing.m_triggerEffect.Create(from, facing, null, 1f, -1, vp.GetZDOID());
             throwing.m_trailStartEffect.Create(from, facing, null, 1f, -1, vp.GetZDOID());
@@ -343,7 +410,7 @@ namespace Eldenheim
             if (!_struck.TryGetValue(index, out HashSet<GameObject> struck))
             {
                 _struck[index] = struck = new HashSet<GameObject>();
-                if (IsThrow(p) && Throw(vp, p, hit, Item(vp, main), log))
+                if (IsThrow(p, index) && Throw(vp, p, hit, Item(vp, main), log))
                 {
                     struck.Add(vp.gameObject);
                 }
@@ -474,7 +541,8 @@ namespace Eldenheim
         private static ItemDrop.ItemData Item(VPlayer vp, Blade b) =>
             b?.Item ?? (vp.m_unarmedWeapon != null ? vp.m_unarmedWeapon.m_itemData : null);
 
-        private bool Strike(VPlayer vp, SimPlayer p, ItemDrop.ItemData weapon, ActiveHit hit, Collider collider, Vector3 bladeMid, float stop, List<string> log)
+        private bool Strike(VPlayer vp, SimPlayer p, ItemDrop.ItemData weapon, ActiveHit hit, Collider collider, Vector3 bladeMid, float stop, List<string> log,
+                            Thrown thrown = null)
         {
             GameObject go = Projectile.FindHitObject(collider);
             if (weapon == null || go == null || go == vp.gameObject || _hitThisWindow.Contains(go))
@@ -501,7 +569,7 @@ namespace Eldenheim
             }
             // Something solid was struck: a sledge's heavy slams here.
             _slamAt = _slamAt ?? point;
-            if (Slams(weapon) && !Heavy(p) && !_impactDone)
+            if (thrown == null && Slams(weapon) && !Heavy(p) && !_impactDone)
             {
                 // A sledge's hit sound is in its trigger list (its hit list is empty): a swing that doesn't slam still sounds it, once.
                 _impactDone = true;
@@ -529,7 +597,7 @@ namespace Eldenheim
             attack?.m_hitEffect.Create(point, Quaternion.identity, null, 1f, -1, vp.GetZDOID());
 
             Skills.SkillType skill = weapon.m_shared.m_skillType;
-            float factor = vp.GetRandomSkillFactor(skill) * MotionScale(p, hit) * Settings.DamageScale.Value;
+            float factor = vp.GetRandomSkillFactor(skill) * (thrown?.Motion ?? MotionScale(p, hit)) * Settings.DamageScale.Value;
             var data = new HitData
             {
                 m_toolTier = (short)weapon.m_shared.m_toolTier,
@@ -538,7 +606,7 @@ namespace Eldenheim
                 m_itemWorldLevel = (byte)weapon.m_worldLevel,
                 m_pushForce = weapon.m_shared.m_attackForce * factor * (attack?.m_forceMultiplier ?? 1f),
                 m_backstabBonus = weapon.m_shared.m_backstabBonus,
-                m_staggerMultiplier = (attack?.m_staggerMultiplier ?? 1f) * GuardScale(p, hit) * Settings.PoiseScale.Value,
+                m_staggerMultiplier = (attack?.m_staggerMultiplier ?? 1f) * (thrown?.Guard ?? GuardScale(p, hit)) * Settings.PoiseScale.Value,
                 m_dodgeable = weapon.m_shared.m_dodgeable,
                 m_blockable = weapon.m_shared.m_blockable,
                 m_skill = skill,
@@ -644,7 +712,7 @@ namespace Eldenheim
         /// Attack.DoAreaAttack where the heavy struck: the shockwave (the
         /// weapon's trigger effects) and a blow to everything in its sphere.
         /// </summary>
-        private bool Slam(VPlayer vp, SimPlayer p, ItemDrop.ItemData weapon, ActiveHit hit, Vector3 at, float stop, List<string> log)
+        private bool Slam(VPlayer vp, SimPlayer p, ItemDrop.ItemData weapon, ActiveHit hit, Vector3 at, float stop, List<string> log, Thrown thrown = null)
         {
             Attack attack = weapon.m_shared.m_attack;
             foreach (EffectList list in new[] { weapon.m_shared.m_triggerEffect, attack.m_triggerEffect })
@@ -656,7 +724,7 @@ namespace Eldenheim
             int n = Physics.OverlapSphereNonAlloc(at, radius, _overlap, AttackMask, QueryTriggerInteraction.Ignore);
             for (int c = 0; c < n; c++)
             {
-                landed |= Strike(vp, p, weapon, hit, _overlap[c], at, stop, log);
+                landed |= Strike(vp, p, weapon, hit, _overlap[c], at, stop, log, thrown);
             }
             log.Add($"slam: {weapon.m_shared.m_name} at {at:F1}, radius {radius:0.0} m, {(landed ? "hit" : "nothing")} around");
             AoeShown = (at, radius, Time.time);
@@ -782,7 +850,7 @@ namespace Eldenheim
                     if (f < closes[i])
                     {
                         Blade early = second == null ? swing : EarlyOwner(p, air, act, i, swing, second);
-                        SwingSounds(vp, Item(vp, early), i, opens[i], f, earliest, charged, remote, IsThrow(p));
+                        SwingSounds(vp, Item(vp, early), i, opens[i], f, earliest, charged, remote, !air && IsThrow(p, i));
                     }
                     if (from < opens[i] && f >= opens[i])
                     {

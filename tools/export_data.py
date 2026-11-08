@@ -168,6 +168,7 @@ class Out:
             for f in ("from", "to", "mv", "guard_damage", "stamina", "stop", "radius"):
                 self.f32(h[f])
             self.floats(h["blade"])
+            self.u8(h["throw"])
         if d["charge"] is None:
             self.u8(0)
         else:
@@ -210,7 +211,7 @@ def all_base():
 def export(text):
     o = Out()
     o.b += b"EHDT"
-    o.u32(2)
+    o.u32(3)  # 3: each hit ends with a byte, 1 for a throw
     for name in ("WALK_SPEED", "RUN_SPEED", "RUN_BACK_SPEED", "RUN_SIDE_SPEED", "SPRINT_SPEED", "CROUCH_WALK_SPEED",
                  "CROUCH_RUN_SPEED", "MAX_HP", "MAX_STAMINA"):
         o.f32(float(const(text, name)))

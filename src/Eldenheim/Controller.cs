@@ -325,6 +325,10 @@ namespace Eldenheim
             }
         }
 
+        /// <summary>ER classes with no handle, struck with the body itself: the fists (category 42) and the hand-to-hand arts (55).</summary>
+        public static bool Handless(int weapon) =>
+            weapon == ErData.FIST || weapon >= 0 && weapon < ErData.Weapons.Length && (ErData.Weapons[weapon].Category == 42 || ErData.Weapons[weapon].Category == 55);
+
         /// <summary>The ER right weapon, left armament and grip for what Valheim has equipped, or false.</summary>
         public static bool Map(ItemDrop.ItemData right, ItemDrop.ItemData left, out int weapon, out int leftHand, out Grip grip)
         {
@@ -356,6 +360,13 @@ namespace Eldenheim
             }
             if (right == null)
             {
+                // Both hands empty: the BareHands choice (Fist, or a hand-to-hand art, held in both hands as knuckles are).
+                int bare = left == null ? Weapon(Settings.ClassFor("BareHands") ?? "Fist") : -1;
+                if (bare >= 0 && bare != ErData.FIST)
+                {
+                    weapon = bare;
+                    grip = Handless(bare) ? Grip.TwoHandRight : Grip.OneHand;
+                }
                 return true;
             }
             bool twoHanded = IsTwoHanded(right);
@@ -809,6 +820,8 @@ namespace Eldenheim
             }
             GameObject right = RightInstance(_vis), left = LeftInstance(_vis);
             bool twoLeft = p.Grip == Grip.TwoHandLeft;
+            // A Smithscript weapon is gone from the hand that threw it, and reforms there a moment later.
+            (bool thrownRight, bool thrownLeft) = Combat.ThrownHands(p);
             if (left != null && _retarget.LeftAttach != null && _retarget.RightAttach != null)
             {
                 Transform want = twoLeft ? _retarget.RightAttach : _retarget.LeftAttach;
@@ -816,12 +829,12 @@ namespace Eldenheim
                 {
                     left.transform.SetParent(want, false);
                 }
-                bool show = (p.Grip == Grip.OneHand || twoLeft) && SwapHiding() != SwapKind.NextLeft;
+                bool show = (p.Grip == Grip.OneHand || twoLeft) && SwapHiding() != SwapKind.NextLeft && !(twoLeft ? thrownRight : thrownLeft);
                 Show(left, show);
             }
             if (right != null)
             {
-                Show(right, !twoLeft && SwapHiding() != SwapKind.NextWeapon);
+                Show(right, !twoLeft && SwapHiding() != SwapKind.NextWeapon && !thrownRight);
             }
             SheatheIdleHand(p);
             // Re-measure the blades whenever what sits on an attach point changed.
@@ -1039,7 +1052,7 @@ namespace Eldenheim
         private static readonly Dictionary<string, float> PoleTip = new Dictionary<string, float>
         {
             { "Halberd", 1.85f }, { "Banished Knight's Halberd", 1.85f }, { "Short Spear", 1.66f }, { "Smithscript Spear", 1.66f }, { "Great Spear", 2.26f },
-            { "Guardian's Swordspear", 1.9f },
+            { "Guardian's Swordspear", 1.9f }, { "Cross-Naginata", 2.0f },
         };
 
         private readonly Dictionary<GameObject, Vector3> _poleRest = new Dictionary<GameObject, Vector3>();
@@ -2943,8 +2956,8 @@ namespace Eldenheim
             // (Not paired items: each hand holds its own axe, knife or claw.)
             // Not while a swap plays: the hands trade the weapon around the
             // body, and a hand pinned to the handle drags its arm through the torso.
-            // Bare fists have no handle to grip.
-            bool gripping = !Hands.IsPair(Right) && !p.SwapState.HasValue && p.Weapon != ErData.FIST
+            // Bare fists (and the hand-to-hand arts) have no handle to grip.
+            bool gripping = !Hands.IsPair(Right) && !p.SwapState.HasValue && !Handless(p.Weapon)
                             && (p.Grip != Grip.OneHand || Chooser.GuardsTwoHanded(p));
             // Through a jump (take-off, the air, falls and the landing; not jump
             // attacks, which have their own grip) a two-handed weapon stays in

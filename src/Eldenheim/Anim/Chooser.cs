@@ -356,7 +356,7 @@ namespace Eldenheim.Anim
             Overlay(ClipName(stance, IDLE), null, time, _leftArm, _rightArm, _jumpHold);
             string guardClip;
             // Bare fists, two-handed too, have no handle: they guard as the empty left hand does.
-            bool fists = p.Weapon == ErData.FIST;
+            bool fists = Controller.Handless(p.Weapon);
             if (twoHanded && !fists)
             {
                 guardClip = ClipName(stance, GUARD);

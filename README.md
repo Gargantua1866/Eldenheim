@@ -14,7 +14,7 @@ everything else.
 | Part | What it is |
 |---|---|
 | `sandbox/` | The sandbox itself (MIT, Funny-Bones and contributors), at the version Eldenheim's data is built from. Its tools read your game files. |
-| `src/Eldenheim.Sim` | The sandbox's `src/sim`, ported line for line to C#. Matches the Rust sim exactly over the whole 449 s demo (`tests/Eldenheim.Sim.Replay`). |
+| `src/Eldenheim.Sim` | The sandbox's `src/sim`, ported line for line to C#. Matches the Rust sim exactly over the whole 502 s demo (`tests/Eldenheim.Sim.Replay`). |
 | `src/Eldenheim` | The BepInEx plugin. It ticks the sim at 60 Hz inside Valheim's motion step, moves the body through PhysX, and plays the animations through a playable output that writes the whole pose. |
 | `tools/export_data.py` | Exports the extracted data (`eldenheim_data.bin`) from the sandbox's generated `extracted.rs`, without Rust. |
 | `tools/simtrace` | A Rust harness that compiles the sandbox's own `sim` and `demo`. It records the demo, tick by tick, for the replay check (and exports the same data file as `export_data.py`). |
@@ -250,36 +250,49 @@ recovery frame.
 
 ### Movesets
 
-The mod has 40 Elden Ring movesets, one per class below. Any of them, the
-Torch included, can be picked for any Valheim weapon type in F1 → 5 - Movesets.
+The mod has 53 Elden Ring movesets, one per class below. Any of them, the
+Torch included, can be picked for any Valheim weapon type in F1 → 5 - Movesets,
+and for bare hands (BareHands, at the top: Fist, or a hand-to-hand art).
 
 | Elden Ring weapon type | Classes |
 |---|---|
 | Daggers | Dagger, Erdsteel Dagger |
-| Straight swords | Longsword |
+| Throwing blades | Smithscript Dagger |
+| Straight swords | Longsword, Warhawk's Talon, Carian Knight's Sword |
+| Light greatswords | Milady |
 | Greatswords | Claymore, Knight's Greatsword |
 | Colossal swords | Colossal Sword |
 | Thrusting swords | Rapier |
 | Heavy thrusting swords | Heavy Thrusting Sword, Great Épée |
 | Curved swords | Curved Sword, Shamshir |
-| Curved greatswords | Curved Greatsword |
-| Katanas | Uchigatana, Serpentbone Blade |
+| Curved greatswords | Curved Greatsword, Zamor Curved Sword |
+| Katanas | Uchigatana, Serpentbone Blade, Meteoric Ore Blade |
 | Great katanas | Great Katana, Rakshasa's Great Katana |
 | Twinblades | Twinblade, Godskin Peeler |
-| Axes | Battle Axe, Hand Axe |
+| Axes | Battle Axe, Hand Axe, Warped Axe, Smithscript Axe |
 | Greataxes | Greataxe, Crescent Moon Axe |
 | Hammers | Club, Morning Star, Stone Club |
 | Flails | Flail |
-| Great hammers | Great Hammer |
+| Great hammers | Great Hammer, Smithscript Hammer |
 | Colossal weapons | Colossal Weapon |
-| Spears | Short Spear, Smithscript Spear |
+| Spears | Short Spear, Smithscript Spear, Cross-Naginata |
 | Great spears | Great Spear |
 | Halberds | Halberd, Banished Knight's Halberd, Guardian's Swordspear |
 | Reapers | Reaper |
 | Whips | Whip |
 | Fists | Fist |
+| Hand-to-hand arts | Dryleaf Arts, Dane's Footwork |
 | Claws | Claw, Raptor Talons |
+| Beast claws | Beast Claw |
 | Torches | Torch |
+
+The Smithscript weapons throw themselves where Elden Ring's do: the Spear's,
+Axe's and Hammer's heavies (the Hammer spins first, and slams with a sledge's
+area blow where it lands) and every Dagger attack. The thrown weapon is gone
+from the hand for a moment and reforms there; a spear thrown with ThrowSpears
+on is gone for good. Feints come with the classes that have them in the game
+(among the new ones, the Smithscript Dagger and the Beast Claw). The
+hand-to-hand arts kick with the feet: their kicks strike where the foot is.
 
 ## Sound
 

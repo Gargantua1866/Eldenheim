@@ -81,6 +81,7 @@ impl Out {
                 self.f32(v);
             }
             self.blade(h.blade);
+            self.u8(h.throw as u8);
         }
         match d.charge {
             Some((a, b)) => {
@@ -199,7 +200,8 @@ fn export_data(path: &str) {
     let mut o = Out(BufWriter::new(File::create(path).unwrap()));
     o.0.write_all(b"EHDT").unwrap();
     // 2: speed windows (TAE 608) after each action's motion and air attack's blade.
-    o.u32(2);
+    // 3: each hit ends with a byte, 1 for a throw.
+    o.u32(3);
     for v in [
         extracted::WALK_SPEED, extracted::RUN_SPEED, extracted::RUN_BACK_SPEED, extracted::RUN_SIDE_SPEED,
         extracted::SPRINT_SPEED, extracted::CROUCH_WALK_SPEED, extracted::CROUCH_RUN_SPEED, extracted::MAX_HP,

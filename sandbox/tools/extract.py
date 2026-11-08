@@ -103,8 +103,37 @@ WEAPONS = [
     ("Stone Club", 11140000),
     # Guardian's Swordspear: a halberd of its own style.
     ("Guardian's Swordspear", 18110000),
+    # Styles of their own (row ids from Smithbox's English row names): two
+    # straight swords (Warhawk's Talon a117, Carian Knight's Sword a113), the
+    # Warped Axe (a171), the Cross-Naginata (a spear, a202), the Zamor Curved
+    # Sword (a curved greatsword, a215) and the Meteoric Ore Blade (a katana, a166).
+    ("Warhawk's Talon", 2240000),
+    ("Carian Knight's Sword", 2180000),
+    ("Warped Axe", 15010000),
+    ("Cross-Naginata", 16110000),
+    ("Zamor Curved Sword", 8050000),
+    ("Meteoric Ore Blade", 9030000),
+    # Shadow of the Erdtree's other Smithscript weapons, which throw themselves
+    # (see THROWS): the Greathammer (a250), the Axe (a248) and the Dagger,
+    # a throwing blade (category 53) whose every attack is a throw.
+    ("Smithscript Hammer", 12500000),
+    ("Smithscript Axe", 14500000),
+    ("Smithscript Dagger", 63500000),
+    # Shadow of the Erdtree's categories: the light greatswords (Milady, 60),
+    # the beast claws (62) and the hand-to-hand arts (55; Dane's Footwork is
+    # style a246), which strike with the hands and feet (see LIMBS).
+    ("Milady", 67500000),
+    ("Beast Claw", 68500000),
+    ("Dryleaf Arts", 60500000),
+    ("Dane's Footwork", 60510000),
     ("Shield", 30000000),
 ]
+
+# The Smithscript weapons throw themselves: their attacks' bullets (TAE event
+# 2) become hits flagged as throws, which a host that can launch projectiles
+# (Eldenheim) fires. Other classes' bullets are effects (the hand-to-hand
+# arts' gusts) and stay out.
+THROWS = ("Smithscript Spear", "Smithscript Hammer", "Smithscript Axe", "Smithscript Dagger")
 DEFAULT_WEAPON = "Longsword"
 
 # Thickness of the hit capsule around a weapon's striking line. ESTIMATE, and
@@ -160,8 +189,34 @@ BLADES = {
     "Rakshasa's Great Katana": ((0.0, 0.13), (0.06, 1.45)),
     "Stone Club": ((0.0, 0.25), (0.0, 0.7)),
     "Guardian's Swordspear": ((0.0, 0.6), (0.0, 1.9)),
+    "Warhawk's Talon": ((0.0, 0.1), (0.04, 0.95)),
+    "Carian Knight's Sword": ((0.0, 0.1), (0.0, 1.0)),
+    "Warped Axe": ((0.0, 0.7), (0.2, 1.1)),
+    "Cross-Naginata": ((0.0, 1.0), (0.05, 2.0)),
+    "Zamor Curved Sword": ((0.0, 0.13), (0.08, 1.4)),
+    "Meteoric Ore Blade": ((0.0, 0.1), (0.04, 1.05)),
+    "Smithscript Hammer": ((0.0, 0.55), (0.0, 1.16)),
+    "Smithscript Axe": ((0.0, 0.4), (0.1, 0.62)),
+    "Smithscript Dagger": ((0.0, 0.05), (0.0, 0.35)),
+    "Milady": ((0.0, 0.12), (0.0, 1.25)),
+    "Beast Claw": ((0.0, 0.0), (0.0, 0.36)),
+    # The hand-to-hand arts strike with the hand, or (LIMBS) a foot.
+    "Dryleaf Arts": ((0.0, -0.03), (0.0, 0.09)),
+    "Dane's Footwork": ((0.0, -0.03), (0.0, 0.09)),
     "Shield": ((-0.28, 0.0), (0.28, 0.0)),
 }
+
+# Hits anchored on the body rather than the weapon (AtkParam dummy points):
+# ER's hand-to-hand arts punch with points 1/2 and kick with 5/6. Which
+# side is not known from the files here (the points live in the body model),
+# so of each pair the limb that travels furthest through the window strikes.
+# Other points (the weapon's, and body points such as 80 or 830/831, whose
+# place isn't known) keep the weapon's line.
+LIMBS = {
+    "hand": [("R_Forearm", "R_Hand", 0.12), ("L_Forearm", "L_Hand", 0.12)],
+    "foot": [("R_Calf", "R_Toe0", 0.06), ("L_Calf", "L_Toe0", 0.06)],
+}
+BODY_POINTS = {1: "hand", 2: "hand", 5: "foot", 6: "foot"}
 
 # One-handed animation ids; the two-handed set is the same ids plus 2000.
 ATTACKS = [
@@ -353,6 +408,7 @@ class Source:
         self.behavior = param.rows("BehaviorParam_PC")
         self.atk = param.rows("AtkParam_Pc")
         self.weapons = param.rows("EquipParamWeapon")
+        self.bullets = None
         self.skeleton = None
 
     def blade(self, file, anim_id, start, end, left_hand, span):
@@ -381,6 +437,42 @@ class Source:
                 row += [point[0], point[1], -point[2]]
             out.append(row)
         return out
+
+    def limb_blade(self, file, anim_id, start, end, limbs):
+        """As blade, for a hit struck with a limb (LIMBS): of the candidate
+        limbs, the one whose end travels furthest through the window, as a
+        line from midway along it to just past its end."""
+        if self.skeleton is None:
+            self.blade(file, anim_id, start, start, False, ((0, 0), (0, 0)))
+        names, parents, rest = self.skeleton
+        anim = hkanim.Animation(self.hkx[self.hkx_name(file, anim_id)])
+        poses = []
+        for frame in range(int(start), int(-(-end // 1)) + 1):
+            local = list(rest)
+            for b, transform in zip(anim.bones, anim.sample_seconds(frame / 30.0)):
+                local[b] = transform
+            poses.append(fk(parents, local))
+        best, best_travel = None, -1.0
+        for a_name, b_name, extend in limbs:
+            a, b = names.index(a_name), names.index(b_name)
+            rows = []
+            for pose in poses:
+                pa, pb = pose[a][0], pose[b][0]
+                d = [pb[i] - pa[i] for i in range(3)]
+                n = max(sum(v * v for v in d) ** 0.5, 1e-6)
+                near = [(pa[i] + pb[i]) / 2 for i in range(3)]
+                far = [pb[i] + d[i] / n * extend for i in range(3)]
+                rows.append([near[0], near[1], -near[2], far[0], far[1], -far[2]])
+            travel = sum(sum((r1[3 + i] - r0[3 + i]) ** 2 for i in range(3)) ** 0.5 for r0, r1 in zip(rows, rows[1:]))
+            if travel > best_travel:
+                best, best_travel = rows, travel
+        return best
+
+    def strike_blade(self, file, anim_id, start, end, left_hand, span, anchor):
+        """The striking line of a hit: on a limb for the body's points, else on the weapon."""
+        if anchor in BODY_POINTS:
+            return self.limb_blade(file, anim_id, start, end, LIMBS[BODY_POINTS[anchor]])
+        return self.blade(file, anim_id, start, end, left_hand, span)
 
     def table(self, file):
         if file not in self.tae:
@@ -452,7 +544,8 @@ class Source:
     def judge(self, variation, judge_id):
         """(stamina cost, motion value, guard stamina damage multiplier,
         seconds both sides freeze for when the hit lands, radius of the hit
-        capsule, whether it sits on the left-hand weapon)."""
+        capsule, whether it sits on the left-hand weapon, the dummy point the
+        capsule is anchored on)."""
         # Weapons without their own rows fall back to their class's.
         for var in (variation, variation // 100 * 100):
             row = self.behavior.get(100000000 + var * 1000 + judge_id)
@@ -471,7 +564,29 @@ class Source:
         # Where the capsule is anchored: points numbered 10000-10999 are on
         # the left-hand weapon's model.
         (anchor,) = struct.unpack_from("<h", atk, 0x2C)
-        return stamina, mv / 100.0, stam_dmg / 100.0, hit_stop, BLADE_RADIUS, 10000 <= anchor < 11000
+        return stamina, mv / 100.0, stam_dmg / 100.0, hit_stop, BLADE_RADIUS, 10000 <= anchor < 11000, anchor
+
+    def throw_judge(self, variation, judge_id):
+        """As judge, for a thrown weapon: its behaviour row refers (refType 1)
+        to a Bullet row, whose first field is the AtkParam the throw hits with."""
+        if self.bullets is None:
+            self.bullets = param.rows("Bullet")
+        for var in (variation, variation // 100 * 100):
+            row = self.behavior.get(100000000 + var * 1000 + judge_id)
+            if row is not None:
+                break
+        else:
+            return None
+        (ref_id,) = struct.unpack_from("<i", row, 0x0C)
+        (stamina,) = struct.unpack_from("<i", row, 0x14)
+        bullet = self.bullets.get(ref_id) if row[0x09] == 1 else None
+        atk = self.atk.get(struct.unpack_from("<i", bullet, 0x00)[0]) if bullet is not None else None
+        if atk is None:
+            return None
+        (mv,) = struct.unpack_from("<H", atk, 0x3E)
+        (stam_dmg,) = struct.unpack_from("<H", atk, 0x46)
+        (hit_stop,) = struct.unpack_from("<f", atk, 0x14)
+        return stamina, mv / 100.0, stam_dmg / 100.0, hit_stop, BLADE_RADIUS, False, -1
 
 
 def windows(anim, flag):
@@ -514,7 +629,14 @@ def blend_frames(src, file, anim_id):
     return blends[0] if blends else 4.0
 
 
-def action_def(src, name, file, anim_id, variation, reaction=False, span=None, base=None):
+def hit_literal(start, end, mv, stam_dmg, cost, hit_stop, radius, blade, throw):
+    return (
+        "Hit { from: %.1f, to: %.1f, mv: %.2f, guard_damage: %.2f, stamina: %.1f, stop: %.3f, radius: %.2f, blade: %s, throw: %s }"
+        % (start, end, mv, stam_dmg, cost, hit_stop, radius, blade_literal(blade), str(throw).lower())
+    )
+
+
+def action_def(src, name, file, anim_id, variation, reaction=False, span=None, base=None, throws=False):
     """Rust `ActionDef { .. }` literal for one animation, or None if it does not exist.
 
     Reactions carry no input window and their flags mean something narrower
@@ -572,45 +694,41 @@ def action_def(src, name, file, anim_id, variation, reaction=False, span=None, b
         if not got:
             print("  ! no behaviour row for", clip_name(file, anim_id), "judge", judge)
             continue
-        cost, mv, stam_dmg, hit_stop, radius, left_hand = got
+        cost, mv, stam_dmg, hit_stop, radius, left_hand, anchor = got
         if mv <= 0.0:
             continue
         left_hand = left_handed(name, judge, left_hand)
-        blade = src.blade(file, anim_id, start, end, left_hand, span)
-        hit_list.append(
-            "Hit { from: %.1f, to: %.1f, mv: %.2f, guard_damage: %.2f, stamina: %.1f, stop: %.3f, radius: %.2f, blade: %s }"
-            % (start, end, mv, stam_dmg, cost, hit_stop, radius, blade_literal(blade))
-        )
+        blade = src.strike_blade(file, anim_id, start, end, left_hand, span, anchor)
+        hit_list.append(hit_literal(start, end, mv, stam_dmg, cost, hit_stop, radius, blade, False))
         if len(hit_list) == 1:
             stamina = float(cost)
-    # The Smithscript weapons' heavies throw the weapon (a bullet, TAE event
-    # 2) instead of swinging it: the throw becomes the hit window, and a host
-    # that can launch projectiles (Eldenheim) fires one there.
-    if not hit_list and file == "a247" and variation is not None:
-        # The game has no behaviour rows for the throws: an estimate, and the
-        # charged throw hits harder by as much as the moveset's own charged
-        # swing does (its second heavy, which is the class's).
-        boost = 1.0
-        if name.endswith("Charge") and base:
-            mvs = []
-            for slot in (anim_id + 10, anim_id + 15):
-                slot_anim = src.anim(base, slot)
-                got = [src.judge(variation, j) for _s, _e, j in hit_events(slot_anim)] if slot_anim is not None else []
-                mvs.append(sum(g[1] for g in got if g))
-            if mvs[0] > 0.0 and mvs[1] > 0.0:
-                boost = mvs[0] / mvs[1]
+    # The Smithscript weapons throw themselves (a bullet, TAE event 2): the
+    # throw is a hit window of its own, flagged, which a host that can launch
+    # projectiles (Eldenheim) fires. The Spear's and Axe's throwing heavies
+    # only throw; the Hammer's spin first; every Dagger attack throws.
+    if throws and variation is not None:
         for start, end, judge in sorted((frames(e.start), frames(e.end), e.s32(2)) for e in anim.events if e.type == 2):
-            got = src.judge(variation, judge)
+            # The throw's own behaviour row (through its Bullet row).
+            got = src.throw_judge(variation, judge)
             if not got or got[1] <= 0.0:
-                got = (20.0, 1.3, 1.0, 0.08, 0.1, False)
-            cost, mv, stam_dmg, hit_stop, radius, _left = got
-            mv *= boost
+                # None: an estimate, a charged throw hitting harder by as much
+                # as the moveset's own charged swing does (its second heavy,
+                # which is the class's). After a swing it costs nothing more.
+                boost = 1.0
+                if name.endswith("Charge") and base:
+                    mvs = []
+                    for slot in (anim_id + 10, anim_id + 15):
+                        slot_anim = src.anim(base, slot)
+                        sums = [src.judge(variation, j) for _s, _e, j in hit_events(slot_anim)] if slot_anim is not None else []
+                        mvs.append(sum(g[1] for g in sums if g))
+                    if mvs[0] > 0.0 and mvs[1] > 0.0:
+                        boost = mvs[0] / mvs[1]
+                got = (0.0 if hit_list else 20.0, 1.3 * boost, 1.0, 0.08, 0.1, False, -1)
+            cost, mv, stam_dmg, hit_stop, radius, _left, _anchor = got
             blade = src.blade(file, anim_id, start, end, False, span)
-            hit_list.append(
-                "Hit { from: %.1f, to: %.1f, mv: %.2f, guard_damage: %.2f, stamina: %.1f, stop: %.3f, radius: %.2f, blade: %s }"
-                % (start, end, mv, stam_dmg, cost, hit_stop, radius, blade_literal(blade))
-            )
-            stamina = float(cost)
+            hit_list.append(hit_literal(start, end, mv, stam_dmg, cost, hit_stop, radius, blade, True))
+            if len(hit_list) == 1:
+                stamina = float(cost)
             print("  throw:", clip_name(file, anim_id), "frames %.0f-%.0f, judge %d, mv %.2f, stamina %.0f" % (start, end, judge, mv, cost))
             break
     charge = "Some((%.1f, %.1f))" % charging[0] if charging else "None"
@@ -709,7 +827,8 @@ def gather(src):
                     continue
                 anim_id = base_id + offset
                 weapon["file"] = style_file(src, weapon, anim_id)
-                literal = action_def(src, kind, weapon["file"], anim_id, weapon["variation"], span=weapon["blade"], base=weapon["base_file"])
+                literal = action_def(src, kind, weapon["file"], anim_id, weapon["variation"], span=weapon["blade"], base=weapon["base_file"],
+                                     throws=weapon["name"] in THROWS)
                 if not literal:
                     continue
                 # A few paired-weapon attacks carry no hit event of their own.
@@ -730,7 +849,7 @@ def gather(src):
                 if not got:
                     continue
                 cost, radius, left_hand = got[0], got[4], got[5]
-                blade = src.blade(weapon["file"], anim_id, start, end, left_hand, weapon["blade"])
+                blade = src.strike_blade(weapon["file"], anim_id, start, end, left_hand, weapon["blade"], got[6])
                 air.append((index, two_hand, heavy, start, end, cost, radius, blade, weapon["file"], anim_id))
         # The paired jump attack: its first damaging hit.
         weapon["file"] = style_file(src, weapon, AIR_PAIRED)
@@ -740,7 +859,7 @@ def gather(src):
                 got = src.judge(weapon["variation"], judge)
                 if not got or got[1] <= 0.0:
                     continue
-                blade = src.blade(weapon["file"], AIR_PAIRED, start, end, left_handed("Paired", judge, got[5]), weapon["blade"])
+                blade = src.strike_blade(weapon["file"], AIR_PAIRED, start, end, left_handed("Paired", judge, got[5]), weapon["blade"], got[6])
                 air.append((index, False, "paired", start, end, got[0], got[4], blade, weapon["file"], AIR_PAIRED))
                 break
     return weapons, attacks, air

@@ -204,6 +204,31 @@ const WEAPON_PARTS: &[&[([f32; 3], [f32; 3], Stuff)]] = &[
     &[([0.045, 0.5, 0.045], [0.0, 0.12, 0.0], Stuff::Wood), ([0.17, 0.26, 0.15], [0.0, 0.52, 0.0], Stuff::Steel)],
     // Guardian's swordspear: a long shaft with a sword's blade
     &[([0.035, 1.5, 0.035], [0.0, 0.35, 0.0], Stuff::Wood), ([0.07, 0.8, 0.014], [0.0, 1.5, 0.0], Stuff::Steel)],
+    // Warhawk's talon: a straight sword with a hooked blade
+    &[([0.03, 0.2, 0.03], [0.0, -0.02, 0.0], Stuff::Wood), ([0.18, 0.025, 0.04], [0.0, 0.09, 0.0], Stuff::Steel), ([0.06, 0.8, 0.012], [0.02, 0.52, 0.0], Stuff::Steel)],
+    // Carian knight's sword: a straight sword
+    &[([0.03, 0.2, 0.03], [0.0, -0.02, 0.0], Stuff::Wood), ([0.2, 0.025, 0.04], [0.0, 0.09, 0.0], Stuff::Steel), ([0.05, 0.9, 0.012], [0.0, 0.55, 0.0], Stuff::Steel)],
+    // Warped axe: a greataxe's haft with a broad head
+    &[([0.045, 1.2, 0.045], [0.0, 0.4, 0.0], Stuff::Wood), ([0.38, 0.4, 0.03], [0.15, 0.92, 0.0], Stuff::Steel)],
+    // Cross-naginata: a long shaft with a curved blade
+    &[([0.035, 1.9, 0.035], [0.0, 0.5, 0.0], Stuff::Wood), ([0.06, 0.6, 0.014], [0.03, 1.7, 0.0], Stuff::Steel)],
+    // Zamor curved sword: a curved greatsword
+    &[([0.04, 0.34, 0.04], [0.0, -0.06, 0.0], Stuff::Wood), ([0.22, 0.03, 0.05], [0.0, 0.12, 0.0], Stuff::Steel), ([0.1, 0.7, 0.016], [0.0, 0.5, 0.0], Stuff::Steel), ([0.11, 0.6, 0.016], [0.08, 1.1, 0.0], Stuff::Steel)],
+    // Meteoric ore blade: a katana
+    &[([0.03, 0.26, 0.03], [0.0, -0.04, 0.0], Stuff::Wood), ([0.08, 0.015, 0.08], [0.0, 0.1, 0.0], Stuff::Steel), ([0.04, 0.95, 0.012], [0.02, 0.58, 0.0], Stuff::Steel)],
+    // Smithscript hammer: a great hammer
+    &[([0.045, 1.15, 0.045], [0.0, 0.4, 0.0], Stuff::Wood), ([0.3, 0.2, 0.2], [0.0, 1.05, 0.0], Stuff::Steel)],
+    // Smithscript axe: a hand axe
+    &[([0.04, 0.62, 0.04], [0.0, 0.2, 0.0], Stuff::Wood), ([0.2, 0.18, 0.025], [0.07, 0.5, 0.0], Stuff::Steel)],
+    // Smithscript dagger: a short dagger
+    &[([0.03, 0.12, 0.03], [0.0, -0.02, 0.0], Stuff::Wood), ([0.035, 0.28, 0.012], [0.0, 0.2, 0.0], Stuff::Steel)],
+    // Milady: a slim greatsword
+    &[([0.035, 0.3, 0.035], [0.0, -0.05, 0.0], Stuff::Wood), ([0.24, 0.03, 0.04], [0.0, 0.11, 0.0], Stuff::Steel), ([0.05, 1.12, 0.012], [0.0, 0.69, 0.0], Stuff::Steel)],
+    // Beast claw: claws
+    &[([0.09, 0.08, 0.05], [0.0, 0.0, 0.0], Stuff::Wood), ([0.014, 0.32, 0.014], [-0.03, 0.2, 0.0], Stuff::Steel), ([0.014, 0.32, 0.014], [0.0, 0.2, 0.0], Stuff::Steel), ([0.014, 0.32, 0.014], [0.03, 0.2, 0.0], Stuff::Steel)],
+    // Dryleaf arts, Dane's footwork: the hands themselves
+    &[],
+    &[],
 ];
 
 #[derive(Clone, Copy)]
