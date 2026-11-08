@@ -290,8 +290,14 @@ The Smithscript weapons throw themselves where Elden Ring's do: the Spear's,
 Axe's and Hammer's heavies (the Hammer spins first, and slams with a sledge's
 area blow where it lands) and every Dagger attack. The thrown weapon is gone
 from the hand for a moment and reforms there; a spear thrown with ThrowSpears
-on is gone for good. Feints come with the classes that have them in the game
-(among the new ones, the Smithscript Dagger and the Beast Claw). The
+on is gone for good. Throws leave from the middle of the body toward the lock-on
+target or the crosshair, with the body turning that way as the attack allows;
+the axe tumbles and the hammer spins flat as they fly. Two-handing the Dagger
+shows a knife in each hand and throws from both.
+
+Feints come with the classes that have them in the game (among the new ones,
+the Smithscript Dagger and the Beast Claw). The Carian Knight's Sword guards
+while its heavies charge: a blocked hit doesn't stop the attack. The
 hand-to-hand arts kick with the feet: their kicks strike where the foot is.
 
 ## Sound

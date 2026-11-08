@@ -147,6 +147,33 @@ def q16(v):
     return max(-32767, min(32767, int(round(v * 32767.0))))
 
 
+def despike(poses, bones):
+    """Smooths single frames where a bone snaps away and straight back (a
+    clip's forearm straightening for one frame: a166_030505 at 9, 92 degrees
+    out and 126 back). The next frame must be nearer the last one than the
+    bad frame is to either. Returns how many frames it changed."""
+    # |dot| of two unit quaternions: cos(half the angle). 45 degrees apart: 0.924.
+    far = 0.924
+    changed = 0
+    for i in range(1, len(poses) - 1):
+        before, now, after = poses[i - 1], poses[i], poses[i + 1]
+        for b in bones:
+            q0, q1, q2 = before[b][1], now[b][1], after[b][1]
+            d01 = abs(sum(x * y for x, y in zip(q0, q1)))
+            if d01 >= far:
+                continue
+            d12 = abs(sum(x * y for x, y in zip(q1, q2)))
+            d02 = sum(x * y for x, y in zip(q0, q2))
+            if d12 >= far or abs(d02) <= max(d01, d12):
+                continue
+            sign = 1.0 if d02 >= 0.0 else -1.0
+            mid = [x + sign * y for x, y in zip(q0, q2)]
+            n = sum(v * v for v in mid) ** 0.5
+            now[b] = (now[b][0], tuple(v / n for v in mid))
+            changed += 1
+    return changed
+
+
 def main_lean(out):
     names_wanted = sandbox_clip_names()
     src = Source()
@@ -194,6 +221,7 @@ def main_lean(out):
             f.write(struct.pack("<7f", px, py, pz, qx, qy, qz, qw))
         f.write(struct.pack("<I", len(positioned)) + struct.pack("<%dH" % len(positioned), *positioned))
         frames_total = 0
+        spikes = 0
         missing = []
         for name in names_wanted:
             file, anim_id = "a%02d" % int(name[1:4]), int(name[5:])
@@ -209,16 +237,21 @@ def main_lean(out):
                 blend = 0.0
             count = anim.frames_at_30fps() + 1
             f.write(struct.pack("<B", len(name)) + name.encode() + struct.pack("<fI", blend, count))
+            poses = []
             for frame in range(count):
                 local = list(rest)
                 for bone, transform in zip(anim.bones, anim.sample_seconds(frame / 30.0)):
                     local[bone] = transform
+                poses.append(local)
+            spikes += despike(poses, needed)
+            for local in poses:
                 p = pose(local)
                 f.write(struct.pack("<%dh" % (4 * len(p)), *[q16(c) for _, q in p for c in q]))
                 for i in positioned:
                     f.write(struct.pack("<3f", *p[i][0]))
             frames_total += count
-        print("wrote", out, out.stat().st_size, "bytes,", len(names_wanted), "clips,", frames_total, "frames,", len(lean), "bones; missing", missing)
+        print("wrote", out, out.stat().st_size, "bytes,", len(names_wanted), "clips,", frames_total, "frames,", len(lean), "bones;",
+              spikes, "one-frame spikes smoothed; missing", missing)
 
 
 if __name__ == "__main__":

@@ -38,9 +38,9 @@ namespace Eldenheim.Sim
         {
             using (var r = new BinaryReader(File.OpenRead(path)))
             {
-                if (Encoding.ASCII.GetString(r.ReadBytes(4)) != "EHDT" || r.ReadUInt32() != 3)
+                if (Encoding.ASCII.GetString(r.ReadBytes(4)) != "EHDT" || r.ReadUInt32() != 4)
                 {
-                    throw new IOException("not an eldenheim_data.bin of version 3: make the data again (EldenheimSetup, or the README's steps)");
+                    throw new IOException("not an eldenheim_data.bin of version 4: make the data again (EldenheimSetup, or the README's steps)");
                 }
                 WALK_SPEED = r.ReadSingle();
                 RUN_SPEED = r.ReadSingle();
@@ -91,6 +91,7 @@ namespace Eldenheim.Sim
                         Radius = r.ReadSingle(),
                         Blade = Rows(r, 6),
                         Speed = Rows(r, 4),
+                        Throw = r.ReadByte(),
                     };
                 }
 
@@ -145,7 +146,7 @@ namespace Eldenheim.Sim
                     Stop = r.ReadSingle(),
                     Radius = r.ReadSingle(),
                     Blade = Rows(r, 6),
-                    Throw = r.ReadByte() != 0,
+                    Throw = r.ReadByte(),
                 };
             }
             d.HasCharge = r.ReadByte() != 0;
@@ -158,6 +159,8 @@ namespace Eldenheim.Sim
             d.Turn = Rows(r, 3);
             d.Motion = Rows(r, 3);
             d.Speed = Rows(r, 4);
+            d.GuardFrom = r.ReadSingle();
+            d.GuardTo = r.ReadSingle();
             return d;
         }
 

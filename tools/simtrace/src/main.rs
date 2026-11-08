@@ -81,7 +81,7 @@ impl Out {
                 self.f32(v);
             }
             self.blade(h.blade);
-            self.u8(h.throw as u8);
+            self.u8(h.throw);
         }
         match d.charge {
             Some((a, b)) => {
@@ -109,6 +109,8 @@ impl Out {
             }
         }
         self.speed(d.speed);
+        self.f32(d.guard.0);
+        self.f32(d.guard.1);
     }
     fn speed(&mut self, windows: &[(f32, f32, f32, f32)]) {
         self.u32(windows.len() as u32);
@@ -126,6 +128,7 @@ impl Out {
         self.f32(d.radius);
         self.blade(d.blade);
         self.speed(d.speed);
+        self.u8(d.throw);
     }
 }
 
@@ -200,8 +203,9 @@ fn export_data(path: &str) {
     let mut o = Out(BufWriter::new(File::create(path).unwrap()));
     o.0.write_all(b"EHDT").unwrap();
     // 2: speed windows (TAE 608) after each action's motion and air attack's blade.
-    // 3: each hit ends with a byte, 1 for a throw.
-    o.u32(3);
+    // 3: each hit ends with a byte, its throw (0 none, 1 right hand, 2 left).
+    // 4: so does each air attack; each action ends with its guard window.
+    o.u32(4);
     for v in [
         extracted::WALK_SPEED, extracted::RUN_SPEED, extracted::RUN_BACK_SPEED, extracted::RUN_SIDE_SPEED,
         extracted::SPRINT_SPEED, extracted::CROUCH_WALK_SPEED, extracted::CROUCH_RUN_SPEED, extracted::MAX_HP,

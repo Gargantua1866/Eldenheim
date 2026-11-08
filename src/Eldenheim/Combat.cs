@@ -186,8 +186,8 @@ namespace Eldenheim
         private void GroundSlam(VPlayer vp, SimPlayer p, Hit[] hits, Blade blade, List<string> log)
         {
             ItemDrop.ItemData weapon = Item(vp, blade);
-            // (Not once the sledge is thrown: the head that would meet the ground is in the air.)
-            if (hits.Length == 0 || _slammed.Count > 0 || blade == null || !blade.Valid || !Slams(weapon) || !Heavy(p) || ThrownHands(p).Right)
+            // (Not an attack that throws the sledge: it slams where it lands.)
+            if (hits.Length == 0 || _slammed.Count > 0 || blade == null || !blade.Valid || !Slams(weapon) || !Heavy(p) || Throws(p))
             {
                 return;
             }
@@ -234,8 +234,22 @@ namespace Eldenheim
         /// <summary>The Smithscript weapons' throws: hit windows the data flags as throws (tools/extract.py THROWS).</summary>
         private static bool IsThrow(SimPlayer p, int index)
         {
-            Hit[] hits = p.State == StateKind.Act && p.Act.Id.IsAttack && !p.AirAttackState.HasValue ? p.Act.Id.Def().Hits : null;
-            return hits != null && index < hits.Length && hits[index].Throw;
+            if (p.AirAttackState is AirAttack air)
+            {
+                return air.Def.Throw != 0;
+            }
+            Hit[] hits = p.State == StateKind.Act && p.Act.Id.IsAttack ? p.Act.Id.Def().Hits : null;
+            return hits != null && index < hits.Length && hits[index].Throw != 0;
+        }
+
+        /// <summary>An attack that ends in a throw: a sledge's slam waits for it to land.</summary>
+        private static bool Throws(SimPlayer p)
+        {
+            if (p.AirAttackState is AirAttack air)
+            {
+                return air.Def.Throw != 0;
+            }
+            return p.State == StateKind.Act && p.Act.Id.IsAttack && p.Act.Id.Def().Hits.Any(h => h.Throw != 0);
         }
 
         /// <summary>
@@ -248,18 +262,68 @@ namespace Eldenheim
         /// <summary>Whether a throw has emptied the right / left hand at this frame (every client works it out from the sim).</summary>
         public static (bool Right, bool Left) ThrownHands(SimPlayer p)
         {
-            if (p.State != StateKind.Act || !p.Act.Id.IsAttack || p.AirAttackState.HasValue)
+            if (p.AirAttackState is AirAttack air)
+            {
+                bool away = air.Def.Throw != 0 && air.F >= air.Def.From && air.F < air.Def.From + ThrowReturnFrames;
+                return (away && air.Def.Throw == 1, away && air.Def.Throw == 2);
+            }
+            if (p.State != StateKind.Act || !p.Act.Id.IsAttack)
             {
                 return (false, false);
             }
-            bool gone = p.Act.Id.Def().Hits.Any(h => h.Throw && p.Act.F >= h.From && p.Act.F < h.From + ThrowReturnFrames);
-            if (!gone)
+            bool right = false, left = false;
+            foreach (Hit h in p.Act.Id.Def().Hits)
             {
-                return (false, false);
+                if (h.Throw != 0 && p.Act.F >= h.From && p.Act.F < h.From + ThrowReturnFrames)
+                {
+                    right |= h.Throw == 1;
+                    left |= h.Throw == 2;
+                }
             }
-            string kind = p.Act.Id.Kind.ToString();
-            return kind.StartsWith("Left") ? (false, true) : kind.StartsWith("Paired") ? (true, true) : (true, false);
+            return (right, left);
         }
+
+        /// <summary>Thrown from the middle of the body, at chest height, a little ahead.</summary>
+        private static Vector3 ThrowOrigin(VPlayer vp, Vector3 toward)
+        {
+            Vector3 chest = vp.transform.position + Vector3.up * 1.3f;
+            toward.y = 0f;
+            Vector3 from = chest + (toward.sqrMagnitude > 1e-4f ? toward.normalized : vp.transform.forward) * 0.5f;
+            return Physics.Linecast(chest, from, GroundMask, QueryTriggerInteraction.Ignore) ? chest : from;
+        }
+
+        /// <summary>What the crosshair is on: along the camera from the player onward, the player itself aside.</summary>
+        private static bool CrosshairPoint(VPlayer vp, out Vector3 point)
+        {
+            Transform cam = GameCamera.instance != null ? GameCamera.instance.transform : null;
+            if (cam == null)
+            {
+                point = vp.transform.position + vp.transform.forward * 100f;
+                return false;
+            }
+            Vector3 forward = cam.forward;
+            Vector3 start = cam.position + forward * Mathf.Max(0f, Vector3.Dot(vp.transform.position - cam.position, forward));
+            float nearest = float.MaxValue;
+            bool found = false;
+            point = start + forward * 200f;
+            int n = Physics.RaycastNonAlloc(start, forward, _aimHits, 200f, AttackMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                RaycastHit h = _aimHits[i];
+                if (h.distance < nearest && h.collider != null && !h.collider.transform.IsChildOf(vp.transform))
+                {
+                    nearest = h.distance;
+                    point = h.point;
+                    found = true;
+                }
+            }
+            return found;
+        }
+
+        private static readonly RaycastHit[] _aimHits = new RaycastHit[32];
+
+        /// <summary>The projectile ZDO's spin: 1 end over end (an axe), 2 flat (a hammer), 0 none.</summary>
+        public const string ThrownSpin = "eldenheim.thrownspin";
 
         /// <summary>
         /// Valheim's own spear throw (the weapon's secondary attack: its
@@ -282,23 +346,29 @@ namespace Eldenheim
             {
                 return false;
             }
-            // From ER's own spear at this tick (its line starts 0.5 m up the shaft
-            // from the grip). The drawn blade is the last rendered pose, read
-            // before the sim stepped: a frame or two behind, and on a pole slid
-            // along its shaft its near end can be the butt, low behind the hand.
-            Vector3 from = Space.ToUnity(hit.SweepA[SimPlayer.SWEEP_STEPS - 1]);
-            Vector3 dir = AimAt.HasValue ? (AimAt.Value - from).normalized
-                : GameCamera.instance != null ? GameCamera.instance.transform.forward : vp.transform.forward;
-            if (Vector3.Dot(dir, vp.transform.forward) < 0.3f)
+            // At the lock-on target, or whatever the crosshair is on.
+            bool onTarget = CrosshairPoint(vp, out Vector3 aim);
+            if (AimAt.HasValue)
             {
-                // Never behind the thrower: along the facing, aimed a little up.
+                aim = AimAt.Value;
+                onTarget = true;
+            }
+            Vector3 from = ThrowOrigin(vp, aim - vp.transform.position);
+            Vector3 dir = (aim - from).normalized;
+            if (Vector3.Dot(dir, vp.transform.forward) < -0.3f)
+            {
+                // Not behind the thrower: along the facing, aimed a little up.
                 dir = (vp.transform.forward + Vector3.up * 0.08f).normalized;
+                onTarget = false;
             }
             GameObject go = Object.Instantiate(throwing.m_attackProjectile, from, Quaternion.LookRotation(dir));
             if (borrowed && weapon.m_dropPrefab != null)
             {
                 // Every client (this one too) shows it from the projectile's ZDO (Patches: Projectile.UpdateVisual).
-                go.GetComponent<ZNetView>()?.GetZDO()?.Set(ThrownModel, weapon.m_dropPrefab.name);
+                ZDO zdo = go.GetComponent<ZNetView>()?.GetZDO();
+                zdo?.Set(ThrownModel, weapon.m_dropPrefab.name);
+                string cls = ErData.Weapons[SwingMoveset(p).Weapon].Name;
+                zdo?.Set(ThrownSpin, cls == "Smithscript Axe" ? 1 : cls == "Smithscript Hammer" ? 2 : 0);
                 ShowThrownModel(go.GetComponent<Projectile>());
             }
             float factor = vp.GetRandomSkillFactor(weapon.m_shared.m_skillType) * MotionScale(p, hit) * Settings.DamageScale.Value;
@@ -328,8 +398,14 @@ namespace Eldenheim
             // it lands) and leaves the inventory, as vanilla's throw does. Never
             // the harpoon: its line stays in the hand.
             bool consume = Settings.ThrowSpears.Value && throwing.m_consumeItem && !IsHarpoon(weapon) && !borrowed;
-            go.GetComponent<IProjectile>()?.Setup(vp, dir * throwing.m_projectileVel, throwing.m_attackHitNoise, data, consume ? weapon : null, null);
             Projectile projectile = go.GetComponent<Projectile>();
+            Vector3 velocity = dir * throwing.m_projectileVel;
+            if (onTarget && projectile != null && throwing.m_projectileVel > 0f)
+            {
+                // Lift it by what it falls on the way, so it arrives where it was aimed.
+                velocity.y += 0.5f * projectile.m_gravity * Mathf.Min(Vector3.Distance(aim, from) / throwing.m_projectileVel, 2f);
+            }
+            go.GetComponent<IProjectile>()?.Setup(vp, velocity, throwing.m_attackHitNoise, data, consume ? weapon : null, null);
             if (Slams(weapon) && projectile != null)
             {
                 // A thrown sledge (the Smithscript Hammer's throws) slams where it
@@ -413,6 +489,11 @@ namespace Eldenheim
                 if (IsThrow(p, index) && Throw(vp, p, hit, Item(vp, main), log))
                 {
                     struck.Add(vp.gameObject);
+                    if (p.AirAttackState.HasValue)
+                    {
+                        // Thrown in the air: the landing doesn't throw again.
+                        p.MarkHit();
+                    }
                 }
             }
             if (struck.Contains(vp.gameObject))
@@ -463,7 +544,7 @@ namespace Eldenheim
                 }
             }
             ItemDrop.ItemData mainItem = Item(vp, main);
-            if (_slamAt.HasValue && _slammed.Count == 0 && Slams(mainItem) && Heavy(p) && _slammed.Add(index))
+            if (_slamAt.HasValue && _slammed.Count == 0 && Slams(mainItem) && Heavy(p) && !Throws(p) && _slammed.Add(index))
             {
                 landed |= Slam(vp, p, mainItem, hit, _slamAt.Value, stop, log);
             }
@@ -656,8 +737,18 @@ namespace Eldenheim
         public static void ShowThrownModel(Projectile projectile)
         {
             ZNetView nview = projectile != null ? projectile.GetComponent<ZNetView>() : null;
-            if (nview == null || !nview.IsValid() || projectile.transform.Find(ModelName) != null)
+            if (nview == null || !nview.IsValid())
             {
+                return;
+            }
+            Transform shown = projectile.transform.Find(ModelName);
+            if (shown != null)
+            {
+                int spin = nview.GetZDO().GetInt(ThrownSpin);
+                if (spin != 0)
+                {
+                    shown.localRotation = Quaternion.AngleAxis(Time.time * (spin == 1 ? 900f : 720f), spin == 1 ? Vector3.right : Vector3.up);
+                }
                 return;
             }
             string item = nview.GetZDO().GetString(ThrownModel);
@@ -671,8 +762,10 @@ namespace Eldenheim
             {
                 r.enabled = false;
             }
-            GameObject model = Object.Instantiate(ItemStand.GetAttachGameObject(attach), projectile.transform, false);
-            model.name = ModelName;
+            // Under a pivot at the flight line, which spins it (see above).
+            Transform pivot = new GameObject(ModelName).transform;
+            pivot.SetParent(projectile.transform, false);
+            GameObject model = Object.Instantiate(ItemStand.GetAttachGameObject(attach), pivot, false);
             model.transform.localPosition = Vector3.zero;
             model.transform.localRotation = Quaternion.identity;
             foreach (Collider c in model.GetComponentsInChildren<Collider>())
@@ -692,6 +785,11 @@ namespace Eldenheim
             Vector3 z = model.transform.InverseTransformPoint(longest.transform.TransformPoint(b.center - axis * 0.5f));
             Vector3 tip = a.sqrMagnitude >= z.sqrMagnitude ? a - z : z - a;
             model.transform.localRotation = Quaternion.FromToRotation(tip, Vector3.forward);
+            if (nview.GetZDO().GetInt(ThrownSpin) != 0)
+            {
+                // A spinning item turns about its middle, not its grip.
+                model.transform.localPosition = -(model.transform.localRotation * ((a + z) * 0.5f));
+            }
         }
 
         /// <summary>The Abyssal Harpoon: its throw harpoons (SE_Harpooned).</summary>
@@ -850,7 +948,7 @@ namespace Eldenheim
                     if (f < closes[i])
                     {
                         Blade early = second == null ? swing : EarlyOwner(p, air, act, i, swing, second);
-                        SwingSounds(vp, Item(vp, early), i, opens[i], f, earliest, charged, remote, !air && IsThrow(p, i));
+                        SwingSounds(vp, Item(vp, early), i, opens[i], f, earliest, charged, remote, IsThrow(p, i));
                     }
                     if (from < opens[i] && f >= opens[i])
                     {

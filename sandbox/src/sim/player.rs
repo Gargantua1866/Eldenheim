@@ -328,6 +328,15 @@ impl Player {
         self.guarding && self.guard_t >= GUARD_RAISE_FRAMES
     }
 
+    /// Guarding through an attack's own window: a blocked hit doesn't stop it.
+    pub fn attack_guard(&self) -> bool {
+        let State::Act(a) = self.state else {
+            return false;
+        };
+        let (from, to) = a.id.def().guard;
+        a.f >= from && a.f < to
+    }
+
     pub fn guard_counter_ready(&self) -> bool {
         self.guard_counter > 0.0
     }
@@ -1062,6 +1071,15 @@ impl Player {
 
         let toward = Vec3::new(hit.from.x - self.pos.x, 0.0, hit.from.z - self.pos.z);
         let in_arc = toward.normalize_or_zero().dot(self.facing()) >= GUARD_ARC_DEG.to_radians().cos();
+        if self.attack_guard() && in_arc {
+            self.stamina -= hit.stamina * GUARD_STAMINA_TAKEN;
+            if self.stamina <= 0.0 {
+                self.stamina = 0.0;
+                self.start(ActionId::GuardBreak);
+                return HitResult::GuardBroken;
+            }
+            return HitResult::Blocked;
+        }
         if self.guard_up() && in_arc {
             self.stamina -= hit.stamina * GUARD_STAMINA_TAKEN;
             if self.stamina <= 0.0 {

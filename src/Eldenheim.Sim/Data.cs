@@ -91,8 +91,8 @@ namespace Eldenheim.Sim
     {
         public float From, To, Mv, GuardDamage, Stamina, Stop, Radius;
         public float[][] Blade;
-        /// <summary>The weapon is thrown here (the Smithscript weapons).</summary>
-        public bool Throw;
+        /// <summary>The weapon is thrown here (the Smithscript weapons): 1 from the right hand, 2 the left, 0 no throw.</summary>
+        public byte Throw;
     }
 
     public class AirAttackDef
@@ -102,6 +102,8 @@ namespace Eldenheim.Sim
         public float Radius;
         public float[][] Blade;
         public float[][] Speed;
+        /// <summary>As <see cref="Hit.Throw"/>.</summary>
+        public byte Throw;
 
         public float SpeedAt(float frame) => ActionDef.SpeedAt(Speed, frame);
     }
@@ -126,6 +128,8 @@ namespace Eldenheim.Sim
         /// the action's frame simply advances faster.
         /// </summary>
         public float[][] Speed;
+        /// <summary>Frames the character guards through the attack (the Carian Knight's Sword's charging heavies).</summary>
+        public float GuardFrom, GuardTo;
 
         public float SpeedAt(float frame) => SpeedAt(Speed, frame);
 

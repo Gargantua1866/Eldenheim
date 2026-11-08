@@ -354,6 +354,8 @@ pub struct AirAttackDef {
     pub blade: &'static [[f32; 6]],
     /// As `ActionDef::speed`.
     pub speed: &'static [(f32, f32, f32, f32)],
+    /// As `Hit::throw`.
+    pub throw: u8,
 }
 
 impl AirAttackDef {
@@ -392,9 +394,10 @@ pub struct Hit {
     /// The blade's two ends on each frame from `from` (rounded down) to `to`
     /// (rounded up), as [x, y, z, x, y, z] in the character's own space.
     pub blade: &'static [[f32; 6]],
-    /// The weapon is thrown here (the Smithscript weapons): a host that can
-    /// launch projectiles fires one; the sandbox strikes with the blade.
-    pub throw: bool,
+    /// The weapon is thrown here (the Smithscript weapons), from the right
+    /// hand (1) or the left (2); 0 is no throw. A host that can launch
+    /// projectiles fires one; the sandbox strikes with the blade.
+    pub throw: u8,
 }
 
 /// The ends of a blade at `frame`, in the character's own space, from samples
@@ -448,6 +451,9 @@ pub struct ActionDef {
     /// speed at to). Every frame number here is the animation's own, so in
     /// them the action's frame simply advances faster.
     pub speed: &'static [(f32, f32, f32, f32)],
+    /// Frames the character guards through the attack (the Carian Knight's
+    /// Sword's charging heavies); (0, 0) is none.
+    pub guard: (f32, f32),
 }
 
 impl ActionDef {

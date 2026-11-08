@@ -360,6 +360,17 @@ namespace Eldenheim.Sim
         }
 
         public bool GuardUp() => Guarding && _guardT >= Consts.GUARD_RAISE_FRAMES;
+        /// <summary>Guarding through an attack's own window: a blocked hit doesn't stop it.</summary>
+        public bool AttackGuard()
+        {
+            if (State != StateKind.Act)
+            {
+                return false;
+            }
+            ActionDef def = Act.Id.Def();
+            return Act.F >= def.GuardFrom && Act.F < def.GuardTo;
+        }
+
         public bool GuardCounterReady() => _guardCounter > 0f;
         public float GuardT => _guardT;
         public float DodgeHold => _dodgeHold;
@@ -1442,6 +1453,17 @@ namespace Eldenheim.Sim
 
             var toward = new Vec3(hit.From.X - Pos.X, 0f, hit.From.Z - Pos.Z);
             bool inArc = toward.NormalizeOrZero().Dot(Facing()) >= F.Cos(F.ToRadians(Consts.GUARD_ARC_DEG));
+            if (AttackGuard() && inArc)
+            {
+                Stamina -= hit.Stamina * Consts.GUARD_STAMINA_TAKEN;
+                if (Stamina <= 0f)
+                {
+                    Stamina = 0f;
+                    Start(ActionId.GuardBreak);
+                    return HitResult.GuardBroken;
+                }
+                return HitResult.Blocked;
+            }
             if (GuardUp() && inArc)
             {
                 Stamina -= hit.Stamina * Consts.GUARD_STAMINA_TAKEN;

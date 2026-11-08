@@ -253,6 +253,8 @@ F_IN_COMMON, F_CANCEL_R1, F_CANCEL_R2, F_JUMP_FRAMES = 87, 115, 116, 132
 # and anywhere else.
 F_CANCEL_L1_PAIRED, F_CANCEL_LH = 117, 16
 SP_CHARGING = 100280
+# Guarding through an attack (the Carian Knight's Sword's charging heavies).
+F_GUARD = 3
 EVENT_BLEND = 16
 
 # Weapon-independent actions: (Rust variant, TAE file, animation id).
@@ -631,12 +633,33 @@ def blend_frames(src, file, anim_id):
 
 def hit_literal(start, end, mv, stam_dmg, cost, hit_stop, radius, blade, throw):
     return (
-        "Hit { from: %.1f, to: %.1f, mv: %.2f, guard_damage: %.2f, stamina: %.1f, stop: %.3f, radius: %.2f, blade: %s, throw: %s }"
-        % (start, end, mv, stam_dmg, cost, hit_stop, radius, blade_literal(blade), str(throw).lower())
+        "Hit { from: %.1f, to: %.1f, mv: %.2f, guard_damage: %.2f, stamina: %.1f, stop: %.3f, radius: %.2f, blade: %s, throw: %d }"
+        % (start, end, mv, stam_dmg, cost, hit_stop, radius, blade_literal(blade), throw)
     )
 
 
-def action_def(src, name, file, anim_id, variation, reaction=False, span=None, base=None, throws=False):
+def bullets(anim):
+    """An animation's bullet events (from, to, judge, hand): 1 the right hand's, 2 the left's."""
+    return sorted((frames(e.start), frames(e.end), e.s32(2), 2 if e.s32(0) == 2 else 1) for e in anim.events if e.type == 2)
+
+
+def blow_family(anchor):
+    """Hits on one limb or one weapon: the body's points each their own, else
+    by thousands (a weapon's 100s, the left weapon's 10000s, 11000s, 21000s)."""
+    return ("body", anchor) if anchor in BODY_POINTS else ("weapon", anchor // 1000)
+
+
+def air_throw(src, weapon, file, anim_id):
+    """A Smithscript jump attack's first throw, as (from, to, cost, radius, hand, blade), or None."""
+    events = bullets(src.anim(file, anim_id)) if weapon["name"] in THROWS else []
+    if not events:
+        return None
+    start, end, judge, hand = events[0]
+    got = src.throw_judge(weapon["variation"], judge) or (20.0, 1.3, 1.0, 0.08, 0.1, False, -1)
+    return start, end, got[0], got[4], hand, src.blade(file, anim_id, start, end, hand == 2, weapon["blade"])
+
+
+def action_def(src, name, file, anim_id, variation, reaction=False, span=None, base=None, throws=False, spins=False):
     """Rust `ActionDef { .. }` literal for one animation, or None if it does not exist.
 
     Reactions carry no input window and their flags mean something narrower
@@ -689,6 +712,11 @@ def action_def(src, name, file, anim_id, variation, reaction=False, span=None, b
     # Every hit that actually does damage, each with its own stamina cost.
     # Some animations also carry marker events whose attack row has no motion
     # value; those are not hits.
+    # Windows of one limb or weapon that overlap or follow on at once are one
+    # blow (the game's several capsules for a swing, the arts' two for a kick,
+    # Milady's long slashes): a target is struck once, at the first one's values.
+    # Not `spins` (twinblades): each window there is another turn of the spin.
+    blows = []
     for start, end, judge in hits if variation is not None else ():
         got = src.judge(variation, judge)
         if not got:
@@ -698,16 +726,25 @@ def action_def(src, name, file, anim_id, variation, reaction=False, span=None, b
         if mv <= 0.0:
             continue
         left_hand = left_handed(name, judge, left_hand)
-        blade = src.strike_blade(file, anim_id, start, end, left_hand, span, anchor)
-        hit_list.append(hit_literal(start, end, mv, stam_dmg, cost, hit_stop, radius, blade, False))
+        key = (left_hand, blow_family(anchor))
+        for blow in reversed(blows):
+            if not spins and blow["key"] == key and start <= blow["end"]:
+                blow["end"] = max(blow["end"], end)
+                break
+        else:
+            blows.append(dict(key=key, start=start, end=end, mv=mv, stam_dmg=stam_dmg, cost=cost, hit_stop=hit_stop,
+                              radius=radius, left_hand=left_hand, anchor=anchor))
+    for b in blows:
+        blade = src.strike_blade(file, anim_id, b["start"], b["end"], b["left_hand"], span, b["anchor"])
+        hit_list.append(hit_literal(b["start"], b["end"], b["mv"], b["stam_dmg"], b["cost"], b["hit_stop"], b["radius"], blade, 0))
         if len(hit_list) == 1:
-            stamina = float(cost)
+            stamina = float(b["cost"])
     # The Smithscript weapons throw themselves (a bullet, TAE event 2): the
     # throw is a hit window of its own, flagged, which a host that can launch
     # projectiles (Eldenheim) fires. The Spear's and Axe's throwing heavies
     # only throw; the Hammer's spin first; every Dagger attack throws.
     if throws and variation is not None:
-        for start, end, judge in sorted((frames(e.start), frames(e.end), e.s32(2)) for e in anim.events if e.type == 2):
+        for start, end, judge, hand in bullets(anim):
             # The throw's own behaviour row (through its Bullet row).
             got = src.throw_judge(variation, judge)
             if not got or got[1] <= 0.0:
@@ -725,12 +762,11 @@ def action_def(src, name, file, anim_id, variation, reaction=False, span=None, b
                         boost = mvs[0] / mvs[1]
                 got = (0.0 if hit_list else 20.0, 1.3 * boost, 1.0, 0.08, 0.1, False, -1)
             cost, mv, stam_dmg, hit_stop, radius, _left, _anchor = got
-            blade = src.blade(file, anim_id, start, end, False, span)
-            hit_list.append(hit_literal(start, end, mv, stam_dmg, cost, hit_stop, radius, blade, True))
+            blade = src.blade(file, anim_id, start, end, hand == 2, span)
+            hit_list.append(hit_literal(start, end, mv, stam_dmg, cost, hit_stop, radius, blade, hand))
             if len(hit_list) == 1:
                 stamina = float(cost)
-            print("  throw:", clip_name(file, anim_id), "frames %.0f-%.0f, judge %d, mv %.2f, stamina %.0f" % (start, end, judge, mv, cost))
-            break
+            print("  throw:", clip_name(file, anim_id), "frames %.0f-%.0f, judge %d, hand %d, mv %.2f, stamina %.0f" % (start, end, judge, hand, mv, cost))
     charge = "Some((%.1f, %.1f))" % charging[0] if charging else "None"
 
     fields = [
@@ -755,6 +791,7 @@ def action_def(src, name, file, anim_id, variation, reaction=False, span=None, b
         "turn: &[" + ", ".join("(%.1f, %.1f, %.1f)" % t for t in turns) + "]",
         "motion: &[" + ", ".join("[%.3f, %.3f, %.3f]" % m for m in motion) + "]",
         "speed: " + speed_literal(anim),
+        "guard: (%.1f, %.1f)" % (windows(anim, F_GUARD)[0] if variation is not None and windows(anim, F_GUARD) else (0.0, 0.0)),
     ]
     return "ActionDef { " + ", ".join(fields) + " }"
 
@@ -817,7 +854,7 @@ def gather(src):
         weapons.append(info)
 
     attacks = []  # (weapon index, two_hand, kind, literal, file, anim id)
-    air = []  # (weapon index, two_hand, heavy, from, to, cost, radius, blade, file, anim id)
+    air = []  # (weapon index, two_hand, heavy, from, to, cost, radius, blade, throw hand, file, anim id)
     for index, weapon in enumerate(weapons):
         for two_hand in (False, True):
             offset = TWO_HAND_OFFSET if two_hand else 0
@@ -828,7 +865,7 @@ def gather(src):
                 anim_id = base_id + offset
                 weapon["file"] = style_file(src, weapon, anim_id)
                 literal = action_def(src, kind, weapon["file"], anim_id, weapon["variation"], span=weapon["blade"], base=weapon["base_file"],
-                                     throws=weapon["name"] in THROWS)
+                                     throws=weapon["name"] in THROWS, spins=weapon["category"] == 24)
                 if not literal:
                     continue
                 # A few paired-weapon attacks carry no hit event of their own.
@@ -842,7 +879,14 @@ def gather(src):
                 anim_id = base_id + offset
                 weapon["file"] = style_file(src, weapon, anim_id)
                 anim = src.anim(weapon["file"], anim_id)
-                if anim is None or src.hkx_name(weapon["file"], anim_id) is None or not hit_events(anim):
+                if anim is None or src.hkx_name(weapon["file"], anim_id) is None:
+                    continue
+                thrown = air_throw(src, weapon, weapon["file"], anim_id)
+                if thrown:
+                    start, end, cost, radius, hand, blade = thrown
+                    air.append((index, two_hand, heavy, start, end, cost, radius, blade, hand, weapon["file"], anim_id))
+                    continue
+                if not hit_events(anim):
                     continue
                 start, end, judge = hit_events(anim)[0]
                 got = src.judge(weapon["variation"], judge)
@@ -850,17 +894,21 @@ def gather(src):
                     continue
                 cost, radius, left_hand = got[0], got[4], got[5]
                 blade = src.strike_blade(weapon["file"], anim_id, start, end, left_hand, weapon["blade"], got[6])
-                air.append((index, two_hand, heavy, start, end, cost, radius, blade, weapon["file"], anim_id))
+                air.append((index, two_hand, heavy, start, end, cost, radius, blade, 0, weapon["file"], anim_id))
         # The paired jump attack: its first damaging hit.
         weapon["file"] = style_file(src, weapon, AIR_PAIRED)
         anim = src.anim(weapon["file"], AIR_PAIRED)
         if anim is not None and src.hkx_name(weapon["file"], AIR_PAIRED) is not None:
-            for start, end, judge in hit_events(anim):
+            thrown = air_throw(src, weapon, weapon["file"], AIR_PAIRED)
+            if thrown:
+                start, end, cost, radius, hand, blade = thrown
+                air.append((index, False, "paired", start, end, cost, radius, blade, hand, weapon["file"], AIR_PAIRED))
+            for start, end, judge in () if thrown else hit_events(anim):
                 got = src.judge(weapon["variation"], judge)
                 if not got or got[1] <= 0.0:
                     continue
                 blade = src.strike_blade(weapon["file"], AIR_PAIRED, start, end, left_handed("Paired", judge, got[5]), weapon["blade"], got[6])
-                air.append((index, False, "paired", start, end, got[0], got[4], blade, weapon["file"], AIR_PAIRED))
+                air.append((index, False, "paired", start, end, got[0], got[4], blade, 0, weapon["file"], AIR_PAIRED))
                 break
     return weapons, attacks, air
 
@@ -939,16 +987,16 @@ def main():
         "    Some(match (weapon, two_hand, heavy) {",
     ]
     air_literal = (
-        'AirAttackDef { from: %.1f, to: %.1f, stamina: %.1f, source: "%s", radius: %.2f, blade: %s, speed: %s }'
+        'AirAttackDef { from: %.1f, to: %.1f, stamina: %.1f, source: "%s", radius: %.2f, blade: %s, speed: %s, throw: %d }'
     )
-    for index, two_hand, heavy, start, end, cost, radius, blade, file, anim_id in air:
+    for index, two_hand, heavy, start, end, cost, radius, blade, thrown, file, anim_id in air:
         if heavy == "paired":
             continue
         out.append(
-            '        (%d, %s, %s) => AirAttackDef { from: %.1f, to: %.1f, stamina: %.1f, source: "%s", radius: %.2f, blade: %s, speed: %s },'
+            '        (%d, %s, %s) => AirAttackDef { from: %.1f, to: %.1f, stamina: %.1f, source: "%s", radius: %.2f, blade: %s, speed: %s, throw: %d },'
             % (
                 index, str(two_hand).lower(), str(heavy).lower(), start, end, cost, clip_name(file, anim_id), radius,
-                blade_literal(blade), speed_literal(src.anim(file, anim_id)),
+                blade_literal(blade), speed_literal(src.anim(file, anim_id)), thrown,
             )
         )
     out += ["        _ => return None,", "    })", "}", ""]
@@ -959,10 +1007,10 @@ def main():
         "pub fn air_paired(weapon: usize) -> Option<AirAttackDef> {",
         "    Some(match weapon {",
     ]
-    for index, _two_hand, heavy, start, end, cost, radius, blade, file, anim_id in air:
+    for index, _two_hand, heavy, start, end, cost, radius, blade, thrown, file, anim_id in air:
         if heavy == "paired":
             literal = air_literal % (
-                start, end, cost, clip_name(file, anim_id), radius, blade_literal(blade), speed_literal(src.anim(file, anim_id))
+                start, end, cost, clip_name(file, anim_id), radius, blade_literal(blade), speed_literal(src.anim(file, anim_id)), thrown
             )
             out.append("        %d => %s," % (index, literal))
     out += ["        _ => return None,", "    })", "}", ""]

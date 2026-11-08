@@ -325,9 +325,12 @@ namespace Eldenheim
             }
         }
 
-        /// <summary>ER classes with no handle, struck with the body itself: the fists (category 42) and the hand-to-hand arts (55).</summary>
+        /// <summary>
+        /// ER classes whose two hands don't share a handle: the fists (category
+        /// 42), the hand-to-hand arts (55) and the throwing blades (53, a blade in each hand).
+        /// </summary>
         public static bool Handless(int weapon) =>
-            weapon == ErData.FIST || weapon >= 0 && weapon < ErData.Weapons.Length && (ErData.Weapons[weapon].Category == 42 || ErData.Weapons[weapon].Category == 55);
+            weapon == ErData.FIST || weapon >= 0 && weapon < ErData.Weapons.Length && ErData.Weapons[weapon].Category is byte c && (c == 42 || c == 55 || c == 53);
 
         /// <summary>The ER right weapon, left armament and grip for what Valheim has equipped, or false.</summary>
         public static bool Map(ItemDrop.ItemData right, ItemDrop.ItemData left, out int weapon, out int leftHand, out Grip grip)
@@ -837,9 +840,10 @@ namespace Eldenheim
                 Show(right, !twoLeft && SwapHiding() != SwapKind.NextWeapon && !thrownRight);
             }
             SheatheIdleHand(p);
+            bool twinChanged = TwinBlade(p, right, thrownLeft);
             // Re-measure the blades whenever what sits on an attach point changed.
             bool slide = false;
-            if (p.Grip != _lastGrip || right != _lastRightInstance || left != _lastLeftInstance)
+            if (twinChanged || p.Grip != _lastGrip || right != _lastRightInstance || left != _lastLeftInstance)
             {
                 slide = true;
                 RestorePoles();
@@ -855,7 +859,9 @@ namespace Eldenheim
                     // (21000000) has guard style 2, the small shield's forearm raised in front.
                     _chooser.ShieldStyle = _leftShield ? ShieldStyle(Left) : Left == null ? 2 : 0;
                 }
-                _bladeLeft = twoLeft || Left == null ? Vector3.zero
+                _leftShield &= _twin == null;
+                _bladeLeft = _twin != null ? BladeAxis(_retarget.LeftAttach, null, out _rangeLeft, out _radiusLeft)
+                    : twoLeft || Left == null ? Vector3.zero
                     : _leftShield ? ShieldFace(_retarget.LeftAttach) : BladeAxis(_retarget.LeftAttach, Left, out _rangeLeft, out _radiusLeft);
                 // Paired weapons (Skoll and Hati, the dual axes) are one skinned mesh on the body, nothing on the attach points:
                 // each hand's blade is its half of that mesh. Knuckles and claws keep the fists.
@@ -893,6 +899,59 @@ namespace Eldenheim
             bool leftStrikes = Hands.IsLeftWeapon(Left) || Left != null && Left.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Torch;
             _leftBlade.Item = leftStrikes ? Left : null;
             _leftBlade.Instance = leftStrikes && !twoLeft ? left : null;
+        }
+
+        private GameObject _twin, _twinOf;
+
+        /// <summary>
+        /// Two-handing the Smithscript Dagger throws from both hands: the left
+        /// shows a copy of the right's knife, whatever is equipped there. True if the copy came or went.
+        /// </summary>
+        private bool TwinBlade(SimPlayer p, GameObject right, bool thrownLeft)
+        {
+            bool want = p.Grip == Grip.TwoHandRight && right != null && _retarget.LeftAttach != null
+                        && !Hands.IsPair(Right) && ErData.Weapons[p.Weapon].Category == 53;
+            bool changed = false;
+            if (_twin != null && (!want || _twinOf != right))
+            {
+                DropTwin();
+                changed = true;
+            }
+            if (want && _twin == null)
+            {
+                _twinOf = right;
+                _twin = Instantiate(right, _retarget.LeftAttach, false);
+                foreach (Collider c in _twin.GetComponentsInChildren<Collider>(true))
+                {
+                    Destroy(c);
+                }
+                foreach (MeleeWeaponTrail t in _twin.GetComponentsInChildren<MeleeWeaponTrail>(true))
+                {
+                    Destroy(t);
+                }
+                changed = true;
+            }
+            if (_twin != null)
+            {
+                bool show = !thrownLeft && SwapHiding() != SwapKind.NextWeapon;
+                foreach (Renderer r in _twin.GetComponentsInChildren<Renderer>(true))
+                {
+                    r.enabled = show;
+                }
+            }
+            return changed;
+        }
+
+        private void DropTwin()
+        {
+            if (_twin != null)
+            {
+                // Gone at once: the blade's axis is measured from what's left on the attach point.
+                _twin.transform.SetParent(null, false);
+                Destroy(_twin);
+            }
+            _twin = null;
+            _twinOf = null;
         }
 
         private bool _leftShield, _skinnedBlades;
@@ -1353,6 +1412,7 @@ namespace Eldenheim
             {
                 return;
             }
+            DropTwin();
             GameObject right = RightInstance(_vis), left = LeftInstance(_vis);
             if (left != null && _retarget.LeftAttach != null)
             {
@@ -1795,7 +1855,7 @@ namespace Eldenheim
             }
             AirAndSkills(inp);
             Character aim = LockTarget != null ? LockTarget : AutoTarget(inp);
-            Vec3? target = aim != null ? Space.ToSim(aim.transform.position) : (Vec3?)null;
+            Vec3? target = aim != null ? Space.ToSim(aim.transform.position) : ThrowFacing();
             bool wasActing = Sim.State == StateKind.Act;
             ActionId wasAct = Sim.Act.Id;
             float wasF = Sim.Act.F;
@@ -2593,6 +2653,24 @@ namespace Eldenheim
             return swinging ? _autoTarget : null;
         }
 
+        /// <summary>
+        /// A Smithscript attack still to throw, with no target: the body turns
+        /// the camera's way, as far as the attack can turn, for the throw to
+        /// leave the way the crosshair points.
+        /// </summary>
+        private Vec3? ThrowFacing()
+        {
+            bool throwing = Sim.AirAttackState is AirAttack air ? air.Def.Throw != 0 && air.F < air.Def.To
+                : Sim.State == StateKind.Act && Sim.Act.Id.IsAttack && Sim.Act.Id.Def().Hits.Any(h => h.Throw != 0 && Sim.Act.F < h.To);
+            if (!throwing || GameCamera.instance == null)
+            {
+                return null;
+            }
+            Vector3 way = GameCamera.instance.transform.forward;
+            way.y = 0f;
+            return way.sqrMagnitude > 1e-4f ? Space.ToSim(transform.position + way.normalized * 20f) : (Vec3?)null;
+        }
+
         /// <summary>What lock-on can target: living enemies (and PvP players) in range.</summary>
         private static readonly int SightMask = LayerMask.GetMask("Default", "static_solid", "piece", "terrain");
 
@@ -2844,10 +2922,10 @@ namespace Eldenheim
         /// guard, from the frame it starts, so Valheim's parry timer runs.
         /// </summary>
         public bool Blocking => _judging ? BlockingNow
-            : Sim != null && (Sim.GuardUp() || Sim.State == StateKind.Act && Sim.Act.Id == ActionId.GuardHit);
+            : Sim != null && (Sim.GuardUp() || Sim.AttackGuard() || Sim.State == StateKind.Act && Sim.Act.Id == ActionId.GuardHit);
 
         /// <summary>The item that guards (Valheim's GetCurrentBlocker): its block power, parry bonus and sound.</summary>
-        public ItemDrop.ItemData Blocker => Sim == null ? null : Sim.Grip == Grip.TwoHandRight || Sim.GuardsWithRight() ? Right : Left;
+        public ItemDrop.ItemData Blocker => Sim == null ? null : Sim.Grip == Grip.TwoHandRight || Sim.GuardsWithRight() || Sim.AttackGuard() ? Right : Left;
 
         /// <summary>After Valheim applied a hit: one that took a large share of maximum health, unblocked, knocks the player down.</summary>
         public void Damaged(float lost)
