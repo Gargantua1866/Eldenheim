@@ -8,6 +8,7 @@ deleted afterwards so no Elden Ring files are left lying around.
 """
 import contextlib
 import datetime
+import hashlib
 import json
 import os
 import queue
@@ -136,79 +137,105 @@ def running(exes):
     return [e for e in exes if '"%s"' % e.lower() in out]
 
 
+MOD_NAME, MOD_AUTHOR = "Eldenheim", "Gargantua1866"
+RECORD = "eldenheim_install.json"  # what Setup installed, for update, repair and uninstall
+
+
+def installed_dirs(plugins):
+    """Every Eldenheim folder in this plugins folder: Setup's, a manager's import, a manual copy."""
+    found = []
+    for d in sorted(p for p in Path(plugins).glob("*") if p.is_dir()):
+        manifest = {}
+        with contextlib.suppress(OSError, ValueError):
+            manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8-sig"))
+        if (d / RECORD).exists() or (d / "Eldenheim.dll").exists() or (
+                manifest.get("name") == MOD_NAME and manifest.get("author") in (MOD_AUTHOR, None)):
+            found.append(d)
+    return found
+
+
 def install_dir(plugins):
     """An existing Eldenheim install in this plugins folder is updated in place;
     else the folder the profile's manager would use."""
-    for dll in sorted(Path(plugins).glob("*/Eldenheim.dll")):
-        return dll.parent
+    for d in installed_dirs(plugins):
+        return d
     if manager_of(plugins) == "r2modman":
-        return Path(plugins) / "Gargantua1866-Eldenheim"
-    return Path(plugins) / "Eldenheim"
+        return Path(plugins) / ("%s-%s" % (MOD_AUTHOR, MOD_NAME))
+    return Path(plugins) / MOD_NAME
 
 
 def register_gale(plugins, dest, db_path=None):
-    """Adds the mod to the Gale profile's mod list, as Gale's "Import local mod" records it."""
+    """Adds the mod to the Gale profile's mod list, as Gale's "Import local mod"
+    records it, replacing an older entry; with dest None, only removes it."""
     db_path = db_path or GALE_DB
-    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
     profile = Path(plugins).parent.parent
     with contextlib.closing(sqlite3.connect(db_path)) as db:
-        with contextlib.closing(sqlite3.connect(Path(db_path).with_name("data.sqlite3.before-eldenheim"))) as copy:
-            db.backup(copy)
         row = next((r for r in db.execute("select id, path, mods from profiles") if same_path(r[1], profile)), None)
         if row is None:
+            if dest is None:
+                return
             raise RuntimeError("Gale has no profile at %s." % profile)
+        with contextlib.closing(sqlite3.connect(Path(db_path).with_name(GALE_BACKUP))) as copy:
+            db.backup(copy)
         mods = json.loads(row[2])
-        old = [m for m in mods if m.get("name") == manifest["name"] and m.get("author") == manifest.get("author")]
+        old = [m for m in mods if m.get("name") == MOD_NAME and m.get("author") == MOD_AUTHOR]
         mods = [m for m in mods if m not in old]
-        mods.append({
-            "enabled": True,
-            "installTime": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
-            "name": manifest["name"],
-            "icon": str(dest / "icon.png"),
-            "author": manifest.get("author"),
-            "description": manifest.get("description", ""),
-            "version": manifest["version_number"],
-            "dependencies": manifest.get("dependencies", []),
-            "uuid": old[0]["uuid"] if old else str(uuid.uuid4()),
-            "fileSize": sum(f.stat().st_size for f in dest.rglob("*") if f.is_file()),
-            "readme": (dest / "README.md").read_text(encoding="utf-8"),
-        })
+        if dest is not None:
+            manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+            mods.append({
+                "enabled": True,
+                "installTime": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+                "name": MOD_NAME,
+                "icon": str(dest / "icon.png"),
+                "author": MOD_AUTHOR,
+                "description": manifest.get("description", ""),
+                "version": manifest["version_number"],
+                "dependencies": manifest.get("dependencies", []),
+                "uuid": old[0]["uuid"] if old else str(uuid.uuid4()),
+                "fileSize": sum(f.stat().st_size for f in dest.rglob("*") if f.is_file()),
+                "readme": (dest / "README.md").read_text(encoding="utf-8"),
+            })
         db.execute("update profiles set mods = ? where id = ?", (json.dumps(mods), row[0]))
         db.commit()
 
 
+GALE_BACKUP = "data.sqlite3.before-eldenheim"
+
+
 def register_r2modman(plugins, dest):
     """Adds the mod to the profile's mods.yml, in r2modman's ManifestV2 fields
-    (the Thunderstore Mod Manager is r2modman too)."""
-    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
-    author = manifest.get("author", "Gargantua1866")
-    full = "%s-%s" % (author, manifest["name"])
-    major, minor, patch = (int(v) for v in manifest["version_number"].split("."))
-    q = json.dumps  # a JSON string or list is valid YAML
-    entry = "\n".join([
-        "- manifestVersion: 2",
-        "  name: " + q(full),
-        "  authorName: " + q(author),
-        "  websiteUrl: " + q(manifest.get("website_url", "")),
-        "  displayName: " + q(manifest["name"]),
-        "  description: " + q(manifest.get("description", "")),
-        "  gameVersion: '0'",
-        "  networkMode: both",
-        "  packageType: other",
-        "  installMode: managed",
-        "  installedAtTime: %d" % int(datetime.datetime.now().timestamp() * 1000),
-        "  loaders: []",
-        "  dependencies: " + q(manifest.get("dependencies", [])),
-        "  incompatibilities: []",
-        "  optionalDependencies: []",
-        "  versionNumber:",
-        "    major: %d" % major,
-        "    minor: %d" % minor,
-        "    patch: %d" % patch,
-        "  enabled: true",
-        "  icon: " + q(str(dest / "icon.png")),
-        "",
-    ])
+    (the Thunderstore Mod Manager is r2modman too), replacing an older entry;
+    with dest None, only removes it."""
+    full = "%s-%s" % (MOD_AUTHOR, MOD_NAME)
+    entry = ""
+    if dest is not None:
+        manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+        major, minor, patch = (int(v) for v in manifest["version_number"].split("."))
+        q = json.dumps  # a JSON string or list is valid YAML
+        entry = "\n".join([
+            "- manifestVersion: 2",
+            "  name: " + q(full),
+            "  authorName: " + q(MOD_AUTHOR),
+            "  websiteUrl: " + q(manifest.get("website_url", "")),
+            "  displayName: " + q(MOD_NAME),
+            "  description: " + q(manifest.get("description", "")),
+            "  gameVersion: '0'",
+            "  networkMode: both",
+            "  packageType: other",
+            "  installMode: managed",
+            "  installedAtTime: %d" % int(datetime.datetime.now().timestamp() * 1000),
+            "  loaders: []",
+            "  dependencies: " + q(manifest.get("dependencies", [])),
+            "  incompatibilities: []",
+            "  optionalDependencies: []",
+            "  versionNumber:",
+            "    major: %d" % major,
+            "    minor: %d" % minor,
+            "    patch: %d" % patch,
+            "  enabled: true",
+            "  icon: " + q(str(dest / "icon.png")),
+            "",
+        ])
     mods_yml = Path(plugins).parent.parent / "mods.yml"
     text = mods_yml.read_text(encoding="utf-8") if mods_yml.exists() else ""
     if text.strip() in ("", "[]"):
@@ -217,7 +244,9 @@ def register_r2modman(plugins, dest):
     blocks = [b for b in re.split(r"(?m)^(?=- )", text) if b.strip()]
     name_line = re.compile(r"""(?m)^(?:- |  )name: ["']?%s["']?\s*$""" % re.escape(full))
     keep = [b if b.endswith("\n") else b + "\n" for b in blocks if not name_line.search(b)]
-    mods_yml.write_text("".join(keep) + entry, encoding="utf-8")
+    if dest is None and not mods_yml.exists():
+        return
+    mods_yml.write_text("".join(keep) + entry if keep or entry else "[]\n", encoding="utf-8")
 
 
 def check_game(game):
@@ -273,7 +302,8 @@ def run_script(path, *args):
         os.chdir(old_cwd)
 
 
-def pipeline(game, plugins, log):
+def generate_data(game, log):
+    """The README's Setup steps, in WORK. Returns {installed path: generated file}."""
     log("Preparing a work folder in %s" % WORK)
     # A retry in the same window must not reuse modules a failed run imported.
     for name, mod in list(sys.modules.items()):
@@ -302,20 +332,117 @@ def pipeline(game, plugins, log):
         log("\n== %d/%d  %s ==" % (n, len(steps) + 1, title), step=n)
         run_script(script, *args)
 
+    out = {name: WORK / "build" / name for name in DATA_FILES}
+    sounds_bin = WORK / "sandbox" / "assets" / "player_sounds.bin"
+    if sounds_bin.exists():
+        out["player_sounds.bin"] = sounds_bin
+    for ogg in sorted((WORK / "build" / "sounds").glob("*.ogg")):
+        out["sounds/" + ogg.name] = ogg
+    return out
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def tools_hash():
+    """Changes when the bundled tools would make different data."""
+    h = hashlib.sha256()
+    for f in sorted((PAYLOAD / "sandbox" / "tools").rglob("*")) + [
+            PAYLOAD / "tools" / n for n in ("bake_unity.py", "export_data.py", "pick_sounds.py")]:
+        if f.is_file() and "__pycache__" not in f.parts:
+            h.update(f.name.encode() + f.read_bytes())
+    return h.hexdigest()
+
+
+def game_fingerprint(game):
+    """Changes when a game patch changes the files the data is made from."""
+    return {n: [(Path(game) / n).stat().st_size, int((Path(game) / n).stat().st_mtime)]
+            for n in ("Data0.bhd", "Data2.bhd", "Data3.bhd", "regulation.bin", "sd/sd.bhd")
+            if (Path(game) / n).exists()}
+
+
+def read_record(dest):
+    with contextlib.suppress(OSError, ValueError):
+        return json.loads((dest / RECORD).read_text(encoding="utf-8"))
+    return None
+
+
+def installed_version(plugins):
+    for d in installed_dirs(plugins):
+        with contextlib.suppress(OSError, ValueError):
+            return json.loads((d / "manifest.json").read_text(encoding="utf-8-sig"))["version_number"]
+        return "unknown version"
+    return None
+
+
+def bundled_version():
+    return json.loads((PLUGIN / "manifest.json").read_text(encoding="utf-8"))["version_number"]
+
+
+PLUGIN_GUID = "com.gargantua.eldenheim"
+
+
+def config_files(plugins):
+    """The plugin's BepInEx config, beside the plugins folder."""
+    return sorted((Path(plugins).parent / "config").glob(PLUGIN_GUID + ".cfg"))
+
+
+def install(game, plugins, log, repair=False):
+    """Install, update (the default) or repair. The data is regenerated only when
+    it is missing, the bundled tools or the game files changed, or (repair) a
+    file no longer matches what was installed. The config is kept."""
     dest = install_dir(plugins)
-    log("\n== %d/%d  Installing to %s ==" % (len(steps) + 1, len(steps) + 1, dest), step=len(steps) + 1)
-    dest.mkdir(parents=True, exist_ok=True)
+    record = read_record(dest)
+    data_names = [n for n in (record or {}).get("files", {}) if n not in PLUGIN_FILES]
+    reasons = []
+    if record is None:
+        reasons.append("no record of an earlier Setup install")
+    else:
+        if record.get("tools") != tools_hash():
+            reasons.append("this Setup makes newer data")
+        if record.get("game") != game_fingerprint(game):
+            reasons.append("the game files changed")
+        for n in data_names:
+            f = dest / n
+            if not f.exists():
+                reasons.append("%s is missing" % n)
+            elif repair and sha256(f) != record["files"][n]:
+                reasons.append("%s is damaged" % n)
+    log("%s %s in %s" % ("Repairing" if repair else "Installing", bundled_version(), dest))
+
+    if reasons:
+        log("Making the data: " + "; ".join(reasons[:5]) + ("..." if len(reasons) > 5 else ""))
+        data = generate_data(game, log)
+    else:
+        log("The installed data is up to date: keeping it.")
+        data = {n: dest / n for n in data_names}
+    log("\n== Installing to %s ==" % dest, step=6)
+    files = {n: PLUGIN / n for n in PLUGIN_FILES}
+    files.update(data)
     try:
-        for name in PLUGIN_FILES:
-            shutil.copy2(PLUGIN / name, dest / name)
-        for name in DATA_FILES:
-            shutil.copy2(WORK / "build" / name, dest / name)
-        sounds_bin = WORK / "sandbox" / "assets" / "player_sounds.bin"
-        if sounds_bin.exists():
-            shutil.copy2(sounds_bin, dest / "player_sounds.bin")
-        shutil.rmtree(dest / "sounds", ignore_errors=True)
-        if (WORK / "build" / "sounds").exists():
-            shutil.copytree(WORK / "build" / "sounds", dest / "sounds")
+        dest.mkdir(parents=True, exist_ok=True)
+        if repair or reasons:
+            # Only what Setup installs stays (the config lives elsewhere).
+            for f in sorted(dest.rglob("*"), reverse=True):
+                rel = f.relative_to(dest).as_posix()
+                if f.is_file() and rel not in files:
+                    f.unlink()
+                elif f.is_dir() and not any(f.iterdir()):
+                    f.rmdir()
+        for rel, src in files.items():
+            target = dest / rel
+            if src.resolve() != target.resolve():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, target)
+        # Kept data keeps the hashes it was made with, so a later repair still sees damage.
+        hashes = {rel: record["files"][rel] if not reasons and rel in data_names else sha256(dest / rel) for rel in files}
+        record = {"version": bundled_version(), "tools": tools_hash(), "game": game_fingerprint(game), "files": hashes}
+        (dest / RECORD).write_text(json.dumps(record, indent=1), encoding="utf-8")
     except PermissionError as e:
         raise RuntimeError("Couldn't write %s. Close Valheim and try again." % e.filename) from None
     manager = manager_of(plugins)
@@ -324,6 +451,35 @@ def pipeline(game, plugins, log):
         (register_gale if manager == "gale" else register_r2modman)(plugins, dest)
     shutil.rmtree(WORK, ignore_errors=True)
     return dest
+
+
+def uninstall(plugins, log):
+    """Removes every Eldenheim folder in this plugins folder, the plugin's config,
+    the mod manager's entry and Setup's own leftovers."""
+    removed = []
+    try:
+        for d in installed_dirs(plugins):
+            shutil.rmtree(d)
+            removed.append(d)
+        for cfg in config_files(plugins):
+            cfg.unlink()
+            removed.append(cfg)
+    except PermissionError as e:
+        raise RuntimeError("Couldn't delete %s. Close Valheim and try again." % e.filename) from None
+    manager = manager_of(plugins)
+    if manager == "gale":
+        register_gale(plugins, None)
+        # The backup Setup made before changing Gale's database, now that the change is undone.
+        with contextlib.suppress(OSError):
+            GALE_DB.with_name(GALE_BACKUP).unlink()
+        removed.append("Gale's entry")
+    elif manager == "r2modman":
+        register_r2modman(plugins, None)
+        removed.append("the mod manager's entry")
+    shutil.rmtree(WORK.parent, ignore_errors=True)  # work folder, setup.log
+    for r in removed:
+        log("Removed %s" % r)
+    return removed
 
 
 # ---- the window ----------------------------------------------------------
@@ -369,14 +525,40 @@ class App(tk.Tk):
         ttk.Combobox(frame, textvariable=self.plugins, values=found).grid(row=2, column=1, sticky="ew", padx=6)
         ttk.Button(frame, text="Browse…", command=self.pick_plugins).grid(row=2, column=2)
 
-        self.go = ttk.Button(frame, text="Install", command=self.start)
-        self.go.grid(row=3, column=0, columnspan=3, pady=10)
+        self.status = tk.StringVar()
+        ttk.Label(frame, textvariable=self.status).grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        buttons = ttk.Frame(frame)
+        buttons.grid(row=4, column=0, columnspan=3, pady=10)
+        self.buttons = {
+            "install": ttk.Button(buttons, text="Install", command=lambda: self.start("install")),
+            "repair": ttk.Button(buttons, text="Repair", command=lambda: self.start("repair")),
+            "uninstall": ttk.Button(buttons, text="Uninstall", command=lambda: self.start("uninstall")),
+        }
+        for b in self.buttons.values():
+            b.pack(side="left", padx=4)
         self.bar = ttk.Progressbar(frame, maximum=6)
-        self.bar.grid(row=4, column=0, columnspan=3, sticky="ew")
+        self.bar.grid(row=5, column=0, columnspan=3, sticky="ew")
         self.text = tk.Text(frame, height=16, wrap="word", state="disabled")
-        self.text.grid(row=5, column=0, columnspan=3, sticky="nsew", pady=(8, 0))
-        frame.rowconfigure(5, weight=1)
+        self.text.grid(row=6, column=0, columnspan=3, sticky="nsew", pady=(8, 0))
+        frame.rowconfigure(6, weight=1)
+        self.busy = False
+        self.plugins.trace_add("write", lambda *_: self.refresh())
+        self.refresh()
         self.after(100, self.poll)
+
+    def refresh(self):
+        """What is installed in the chosen plugins folder, and which buttons make sense."""
+        plugins = self.plugins.get().strip()
+        have = installed_version(plugins) if plugins and Path(plugins).is_dir() else None
+        ours = bundled_version()
+        if have is None:
+            self.status.set("Eldenheim is not installed in this folder. This Setup installs %s." % ours)
+            self.buttons["install"].configure(text="Install")
+        else:
+            self.status.set("Installed here: Eldenheim %s. This Setup has %s." % (have, ours))
+            self.buttons["install"].configure(text="Update" if have != ours else "Reinstall")
+        for name, b in self.buttons.items():
+            b.state(["disabled"] if self.busy or (name != "install" and have is None) else ["!disabled"])
 
     def pick_game(self):
         d = filedialog.askdirectory(title="Elden Ring's Game folder (holds eldenring.exe)")
@@ -388,17 +570,26 @@ class App(tk.Tk):
         if d:
             self.plugins.set(os.path.normpath(d))
 
-    def start(self):
+    def start(self, action):
         game, plugins = self.game.get().strip(), self.plugins.get().strip()
-        problem = check_game(game) or check_plugins(plugins)
+        problem = check_plugins(plugins) or (check_game(game) if action != "uninstall" else None)
         if problem:
             messagebox.showerror("Eldenheim Setup", problem)
             return
-        self.go.state(["disabled"])
+        if action == "uninstall":
+            what = [str(d) for d in installed_dirs(plugins)] + [str(c) for c in config_files(plugins)]
+            if manager_of(plugins):
+                what.append("Eldenheim's entry in the mod manager's list")
+            what.append(str(WORK.parent))
+            if not messagebox.askyesno("Eldenheim Setup", "Uninstall Eldenheim? This deletes, with your settings:\n\n"
+                                       + "\n".join(what)):
+                return
+        self.busy = True
+        self.refresh()
         self.bar["value"] = 0
-        threading.Thread(target=self.work, args=(game, plugins), daemon=True).start()
+        threading.Thread(target=self.work, args=(action, game, plugins), daemon=True).start()
 
-    def work(self, game, plugins):
+    def work(self, action, game, plugins):
         def log(s, step=None):
             self.q.put(("text", s + "\n"))
             if step is not None:
@@ -407,8 +598,14 @@ class App(tk.Tk):
         writer = QueueWriter(self.q)
         try:
             with contextlib.redirect_stdout(writer), contextlib.redirect_stderr(writer):
-                dest = pipeline(game, plugins, log)
-            self.q.put(("done", "Installed to %s.\n\nStart Valheim to play." % dest))
+                if action == "uninstall":
+                    uninstall(plugins, log)
+                    message = "Eldenheim is uninstalled."
+                else:
+                    dest = install(game, plugins, log, repair=action == "repair")
+                    message = "%s to %s.\n\nStart Valheim to play." % (
+                        "Repaired" if action == "repair" else "Installed", dest)
+            self.q.put(("done", message))
         except Exception as e:
             detail = traceback.format_exc() if not isinstance(e, RuntimeError) else ""
             self.q.put(("text", detail))
@@ -426,7 +623,8 @@ class App(tk.Tk):
                 elif kind == "step":
                     self.bar["value"] = value
                 else:
-                    self.go.state(["!disabled"])
+                    self.busy = False
+                    self.refresh()
                     if kind == "done":
                         self.bar["value"] = self.bar["maximum"]
                         messagebox.showinfo("Eldenheim Setup", value)
@@ -436,14 +634,19 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-    if "--cli" in sys.argv:  # headless: --cli GAME_DIR PLUGINS_DIR (for checking the build)
-        if sys.stdout is None:  # the windowed exe has no console
-            WORK.parent.mkdir(parents=True, exist_ok=True)
-            sys.stdout = sys.stderr = open(WORK.parent / "setup.log", "w", encoding="utf-8")
-        game, plugins = sys.argv[2], sys.argv[3]
-        problem = check_game(game) or check_plugins(plugins)
+    if "--cli" in sys.argv:
+        # Headless, for checking the build: --cli install|repair GAME_DIR PLUGINS_DIR, --cli uninstall PLUGINS_DIR
+        if sys.stdout is None:  # the windowed exe has no console: log beside the exe
+            sys.stdout = sys.stderr = open(Path(sys.executable).with_name("setup.log"), "w", encoding="utf-8")
+        action, *args = sys.argv[sys.argv.index("--cli") + 1:]
+        plugins = args[-1]
+        problem = check_plugins(plugins) or (check_game(args[0]) if action != "uninstall" else None)
         if problem:
             sys.exit(problem)
-        print("installed to", pipeline(game, plugins, lambda s, step=None: print(s, flush=True)))
+        say = lambda s, step=None: print(s, flush=True)  # noqa: E731
+        if action == "uninstall":
+            uninstall(plugins, say)
+        else:
+            print("installed to", install(args[0], plugins, say, repair=action == "repair"))
     else:
         App().mainloop()

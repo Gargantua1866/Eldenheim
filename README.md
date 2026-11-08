@@ -42,7 +42,20 @@ It reads your copy of Elden Ring, makes the mod's data (a few minutes), and
 installs everything into `plugins\Eldenheim` (or updates an Eldenheim already
 there). In a Gale, r2modman or Thunderstore Mod Manager profile it also adds
 Eldenheim to the manager's mod list (Gale's database is backed up first,
-to `data.sqlite3.before-eldenheim`). Nothing is downloaded. Run it again after updating the mod.
+to `data.sqlite3.before-eldenheim`). Nothing is downloaded.
+
+The same window updates, repairs and uninstalls, for the plugins folder chosen:
+
+- **Update** (Install, once installed): installs this Setup's version and
+  keeps your settings. The data is made again only when it is missing, when
+  this Setup makes different data, or after a game patch; otherwise it takes a
+  second.
+- **Repair**: checks every installed file against what Setup installed,
+  replaces the plugin's files, makes the data again if any of it changed, removes
+  anything else from the mod's folder, and re-adds the mod manager's entry.
+- **Uninstall**: deletes the mod's folder (with any test files in it), its config
+  (`BepInEx\config\com.gargantua.eldenheim.cfg`, so your settings too), its
+  entry in the mod manager's list, and Setup's own work folder and backup.
 
 To build the exe: `python installer/build.py [VALHEIM_DIR]` (needs the .NET SDK
 and `python -m pip install pyinstaller pycryptodome zstandard`). It writes
