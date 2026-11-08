@@ -29,7 +29,24 @@ everything else.
 
 The NoWeaponDust mod by Azumatt is highly recommended.
 
-## Setup (your own copy of Elden Ring)
+## Easy install (EldenheimSetup.exe)
+
+1. Install BepInEx and the required mods above, and close Valheim.
+2. Unzip `EldenheimSetup-<version>.zip` anywhere and run
+   `EldenheimSetup\EldenheimSetup.exe`.
+3. Check the two folders it found (Elden Ring's `Game` folder, and Valheim's
+   `BepInEx\plugins`, or a Gale or r2modman profile's), then press Install.
+
+It reads your copy of Elden Ring, makes the mod's data (a few minutes), and
+installs everything into `plugins\Eldenheim` (or updates an Eldenheim already
+there). Nothing is downloaded. Run it again after updating the mod.
+
+To build the exe: `python installer/build.py [VALHEIM_DIR]` (needs the .NET SDK
+and `python -m pip install pyinstaller pycryptodome zstandard`). It writes
+`build/package/EldenheimSetup-<version>.zip`, which holds the plugin and the
+tools but nothing from Elden Ring, so it can be shared.
+
+## Manual setup (your own copy of Elden Ring)
 
 This repository contains no files from Elden Ring or Valheim, and none are
 shipped. The mod's data is generated from your own installed copy of Elden Ring.
@@ -114,7 +131,7 @@ dotnet run --project tests/Eldenheim.Sim.Replay -c Release -- build/eldenheim_da
 
    The row's category and style (byte 0xEE) pick the animations. A style
    with no animations in the game files plays its category's.
-3. Rebuild the data in the order under Setup (setup.py,
+3. Rebuild the data in the order under Manual setup (setup.py,
    bake_unity, export_data, simtrace demo) and run the replay check.
 4. Add the menu name to `Settings.ErClasses` (and a note to a Movesets entry
    if it suits a Valheim weapon type).
