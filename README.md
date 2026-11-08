@@ -16,7 +16,8 @@ everything else.
 | `sandbox/` | The sandbox itself (MIT, Funny-Bones and contributors), at the version Eldenheim's data is built from. Its tools read your game files. |
 | `src/Eldenheim.Sim` | The sandbox's `src/sim`, ported line for line to C#. Matches the Rust sim exactly over the whole 449 s demo (`tests/Eldenheim.Sim.Replay`). |
 | `src/Eldenheim` | The BepInEx plugin. It ticks the sim at 60 Hz inside Valheim's motion step, moves the body through PhysX, and plays the animations through a playable output that writes the whole pose. |
-| `tools/simtrace` | A Rust harness that compiles the sandbox's own `sim` and `demo`. It exports the extracted data and records the demo, tick by tick. |
+| `tools/export_data.py` | Exports the extracted data (`eldenheim_data.bin`) from the sandbox's generated `extracted.rs`, without Rust. |
+| `tools/simtrace` | A Rust harness that compiles the sandbox's own `sim` and `demo`. It records the demo, tick by tick, for the replay check (and exports the same data file as `export_data.py`). |
 | `tools/bake_unity.py` | Bakes every clip the sandbox plays as bone rotations, from your own game files. |
 
 ## Required mods
@@ -35,8 +36,9 @@ shipped. The mod's data is generated from your own installed copy of Elden Ring.
 Shadow of the Erdtree is not needed. Its weapon styles are in the base game's own
 Data3 archive since patch 1.12, so every up-to-date copy has them.
 
-You need Python 3.10+ (`python -m pip install pycryptodome zstandard`), Rust,
-the .NET SDK, and Valheim with BepInEx. Run everything from this folder.
+You need Python 3.10+ (`python -m pip install pycryptodome zstandard`), the
+.NET SDK, and Valheim with BepInEx. Run everything from this folder. Rust is only needed for the replay check
+below.
 
 1. Point the tools at the game's `Game` folder (the one holding
    `eldenring.exe`):
@@ -65,7 +67,7 @@ the .NET SDK, and Valheim with BepInEx. Run everything from this folder.
    ```
 
    ```bash
-   cargo run --release --manifest-path tools/simtrace/Cargo.toml -- data build/eldenheim_data.bin
+   python tools/export_data.py build/eldenheim_data.bin
    ```
 
    ```bash
@@ -113,7 +115,7 @@ dotnet run --project tests/Eldenheim.Sim.Replay -c Release -- build/eldenheim_da
    The row's category and style (byte 0xEE) pick the animations. A style
    with no animations in the game files plays its category's.
 3. Rebuild the data in the order under Setup (setup.py,
-   bake_unity, simtrace data and demo) and run the replay check.
+   bake_unity, export_data, simtrace demo) and run the replay check.
 4. Add the menu name to `Settings.ErClasses` (and a note to a Movesets entry
    if it suits a Valheim weapon type).
 
