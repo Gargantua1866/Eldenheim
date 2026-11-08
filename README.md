@@ -31,7 +31,8 @@ The NoWeaponDust mod by Azumatt is highly recommended.
 
 ## Easy install (EldenheimSetup.exe)
 
-1. Install BepInEx and the required mods above, and close Valheim.
+1. Install BepInEx and the required mods above, and close Valheim (and your
+   mod manager, if you use one).
 2. Unzip `EldenheimSetup-<version>.zip` anywhere and run
    `EldenheimSetup\EldenheimSetup.exe`.
 3. Check the two folders it found (Elden Ring's `Game` folder, and Valheim's
@@ -39,7 +40,9 @@ The NoWeaponDust mod by Azumatt is highly recommended.
 
 It reads your copy of Elden Ring, makes the mod's data (a few minutes), and
 installs everything into `plugins\Eldenheim` (or updates an Eldenheim already
-there). Nothing is downloaded. Run it again after updating the mod.
+there). In a Gale, r2modman or Thunderstore Mod Manager profile it also adds
+Eldenheim to the manager's mod list (Gale's database is backed up first,
+to `data.sqlite3.before-eldenheim`). Nothing is downloaded. Run it again after updating the mod.
 
 To build the exe: `python installer/build.py [VALHEIM_DIR]` (needs the .NET SDK
 and `python -m pip install pyinstaller pycryptodome zstandard`). It writes

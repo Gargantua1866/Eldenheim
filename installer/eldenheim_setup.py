@@ -7,14 +7,19 @@ tool scripts in a work folder (they write next to themselves), which is
 deleted afterwards so no Elden Ring files are left lying around.
 """
 import contextlib
+import datetime
+import json
 import os
 import queue
 import re
 import runpy
 import shutil
+import sqlite3
+import subprocess
 import sys
 import threading
 import traceback
+import uuid
 import winreg
 from pathlib import Path
 import tkinter as tk
@@ -60,7 +65,10 @@ def game_folders():
     for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
         drive = Path(letter + ":/")
         if drive.exists():
-            found += [drive / "Games", drive / "SteamLibrary" / "steamapps" / "common", drive / "Steam" / "steamapps" / "common"]
+            # SteamLibrary is the name Steam suggests for a library added on another drive.
+            found += [drive / "Games", drive / "SteamLibrary" / "steamapps" / "common", drive / "Steam" / "steamapps" / "common",
+                      drive / "Program Files (x86)" / "Steam" / "steamapps" / "common",
+                      drive / "Program Files" / "Steam" / "steamapps" / "common"]
     return [f for f in found if f.is_dir()]
 
 
@@ -77,26 +85,149 @@ def find_plugin_folders():
     found = []
     for folder in game_folders():
         found.append(folder / "Valheim" / "BepInEx" / "plugins")
+    found += [Path(path) / "BepInEx" / "plugins" for path in gale_profiles()]
     appdata = Path(os.environ.get("APPDATA", ""))
     for pattern in ("com.kesomannen.gale/valheim/profiles/*/BepInEx/plugins",
                     "r2modmanPlus-local/Valheim/profiles/*/BepInEx/plugins",
                     "Thunderstore Mod Manager/DataFolder/Valheim/profiles/*/BepInEx/plugins"):
         found += sorted(appdata.glob(pattern))
-    return [str(p) for p in found if p.is_dir()]
+    out = []
+    for p in found:
+        if p.is_dir() and str(p).lower() not in [o.lower() for o in out]:
+            out.append(str(p))
+    return out
+
+
+# ---- mod managers --------------------------------------------------------
+# A mod manager lists only the mods it has recorded, so an install into one of
+# its profiles is recorded the way its own "Import local mod" does.
+
+GALE_DB = Path(os.environ.get("APPDATA", "")) / "com.kesomannen.gale" / "data.sqlite3"
+MANAGER_EXES = {"gale": ["gale.exe"], "r2modman": ["r2modman.exe", "Thunderstore Mod Manager.exe"]}
+
+
+def gale_profiles():
+    """Gale's Valheim profile folders, from its own database (read-only)."""
+    if not GALE_DB.exists():
+        return []
+    with contextlib.suppress(sqlite3.Error):
+        with contextlib.closing(sqlite3.connect("file:%s?mode=ro" % GALE_DB.as_posix(), uri=True)) as db:
+            return [row[0] for row in db.execute("select path from profiles where game_slug = 'valheim'")]
+    return []
+
+
+def same_path(a, b):
+    return os.path.normcase(os.path.normpath(str(a))) == os.path.normcase(os.path.normpath(str(b)))
+
+
+def manager_of(plugins):
+    """'gale', 'r2modman' (also the Thunderstore Mod Manager) or None for a plain BepInEx install."""
+    profile = Path(plugins).parent.parent
+    if any(same_path(profile, p) for p in gale_profiles()):
+        return "gale"
+    if (profile / "mods.yml").exists() or "r2modman" in str(profile) or "Thunderstore Mod Manager" in str(profile):
+        return "r2modman"
+    return None
+
+
+def running(exes):
+    out = subprocess.run(["tasklist", "/fo", "csv", "/nh"], capture_output=True, text=True,
+                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout.lower()
+    return [e for e in exes if '"%s"' % e.lower() in out]
 
 
 def install_dir(plugins):
-    """An existing Eldenheim install in this plugins folder (e.g. Gale's
-    Gargantua1866-Eldenheim) is updated in place; else plugins/Eldenheim."""
+    """An existing Eldenheim install in this plugins folder is updated in place;
+    else the folder the profile's manager would use."""
     for dll in sorted(Path(plugins).glob("*/Eldenheim.dll")):
         return dll.parent
+    if manager_of(plugins) == "r2modman":
+        return Path(plugins) / "Gargantua1866-Eldenheim"
     return Path(plugins) / "Eldenheim"
+
+
+def register_gale(plugins, dest, db_path=None):
+    """Adds the mod to the Gale profile's mod list, as Gale's "Import local mod" records it."""
+    db_path = db_path or GALE_DB
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    profile = Path(plugins).parent.parent
+    with contextlib.closing(sqlite3.connect(db_path)) as db:
+        with contextlib.closing(sqlite3.connect(Path(db_path).with_name("data.sqlite3.before-eldenheim"))) as copy:
+            db.backup(copy)
+        row = next((r for r in db.execute("select id, path, mods from profiles") if same_path(r[1], profile)), None)
+        if row is None:
+            raise RuntimeError("Gale has no profile at %s." % profile)
+        mods = json.loads(row[2])
+        old = [m for m in mods if m.get("name") == manifest["name"] and m.get("author") == manifest.get("author")]
+        mods = [m for m in mods if m not in old]
+        mods.append({
+            "enabled": True,
+            "installTime": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+            "name": manifest["name"],
+            "icon": str(dest / "icon.png"),
+            "author": manifest.get("author"),
+            "description": manifest.get("description", ""),
+            "version": manifest["version_number"],
+            "dependencies": manifest.get("dependencies", []),
+            "uuid": old[0]["uuid"] if old else str(uuid.uuid4()),
+            "fileSize": sum(f.stat().st_size for f in dest.rglob("*") if f.is_file()),
+            "readme": (dest / "README.md").read_text(encoding="utf-8"),
+        })
+        db.execute("update profiles set mods = ? where id = ?", (json.dumps(mods), row[0]))
+        db.commit()
+
+
+def register_r2modman(plugins, dest):
+    """Adds the mod to the profile's mods.yml, in r2modman's ManifestV2 fields
+    (the Thunderstore Mod Manager is r2modman too)."""
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    author = manifest.get("author", "Gargantua1866")
+    full = "%s-%s" % (author, manifest["name"])
+    major, minor, patch = (int(v) for v in manifest["version_number"].split("."))
+    q = json.dumps  # a JSON string or list is valid YAML
+    entry = "\n".join([
+        "- manifestVersion: 2",
+        "  name: " + q(full),
+        "  authorName: " + q(author),
+        "  websiteUrl: " + q(manifest.get("website_url", "")),
+        "  displayName: " + q(manifest["name"]),
+        "  description: " + q(manifest.get("description", "")),
+        "  gameVersion: '0'",
+        "  networkMode: both",
+        "  packageType: other",
+        "  installMode: managed",
+        "  installedAtTime: %d" % int(datetime.datetime.now().timestamp() * 1000),
+        "  loaders: []",
+        "  dependencies: " + q(manifest.get("dependencies", [])),
+        "  incompatibilities: []",
+        "  optionalDependencies: []",
+        "  versionNumber:",
+        "    major: %d" % major,
+        "    minor: %d" % minor,
+        "    patch: %d" % patch,
+        "  enabled: true",
+        "  icon: " + q(str(dest / "icon.png")),
+        "",
+    ])
+    mods_yml = Path(plugins).parent.parent / "mods.yml"
+    text = mods_yml.read_text(encoding="utf-8") if mods_yml.exists() else ""
+    if text.strip() in ("", "[]"):
+        text = ""
+    # Each entry starts with "- " at a line start; an older Eldenheim entry is dropped.
+    blocks = [b for b in re.split(r"(?m)^(?=- )", text) if b.strip()]
+    name_line = re.compile(r"""(?m)^(?:- |  )name: ["']?%s["']?\s*$""" % re.escape(full))
+    keep = [b if b.endswith("\n") else b + "\n" for b in blocks if not name_line.search(b)]
+    mods_yml.write_text("".join(keep) + entry, encoding="utf-8")
 
 
 def check_game(game):
     game = Path(game)
     if not (game / "eldenring.exe").exists() or not (game / "oo2core_6_win64.dll").exists():
-        return "That isn't Elden Ring's Game folder (the one holding eldenring.exe)."
+        return ("That isn't Elden Ring's Game folder. Pick the folder named Game inside ELDEN RING, the one holding "
+                "eldenring.exe. With Steam it is normally:\n\n"
+                "C:\\Program Files (x86)\\Steam\\steamapps\\common\\ELDEN RING\\Game\n\n"
+                "or, in a Steam library on another drive, X:\\SteamLibrary\\steamapps\\common\\ELDEN RING\\Game.\n\n"
+                "In Steam: right-click ELDEN RING > Manage > Browse local files, then open Game.")
     if not (game / "Data0.bhd").exists():
         return "Data0.bhd is missing from the Game folder: is the game fully installed?"
     return None
@@ -105,10 +236,23 @@ def check_game(game):
 def check_plugins(plugins):
     p = Path(plugins)
     if not p.is_dir():
-        return "That plugins folder doesn't exist."
+        return "That plugins folder doesn't exist.\n\n" + PLUGINS_HELP
     if p.name.lower() != "plugins" or p.parent.name.lower() != "bepinex":
-        return "Pick the BepInEx\\plugins folder (install BepInEx for Valheim first)."
+        return "Pick a folder named plugins inside BepInEx.\n\n" + PLUGINS_HELP
+    manager = manager_of(plugins)
+    busy = running(MANAGER_EXES[manager]) if manager else []
+    if busy:
+        return "Close %s first: it keeps its mod list open and would overwrite the new entry." % " and ".join(busy)
     return None
+
+
+PLUGINS_HELP = ("Valheim's BepInEx\\plugins folder is normally:\n\n"
+                "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Valheim\\BepInEx\\plugins\n\n"
+                "With a mod manager, pick its profile's folder instead:\n"
+                "Gale: %APPDATA%\\com.kesomannen.gale\\valheim\\profiles\\<profile>\\BepInEx\\plugins\n"
+                "r2modman: %APPDATA%\\r2modmanPlus-local\\Valheim\\profiles\\<profile>\\BepInEx\\plugins\n"
+                "Thunderstore Mod Manager: %APPDATA%\\Thunderstore Mod Manager\\DataFolder\\Valheim\\profiles\\<profile>\\BepInEx\\plugins\n\n"
+                "(Install BepInEx for Valheim first if there is none.)")
 
 
 # ---- the pipeline --------------------------------------------------------
@@ -174,6 +318,10 @@ def pipeline(game, plugins, log):
             shutil.copytree(WORK / "build" / "sounds", dest / "sounds")
     except PermissionError as e:
         raise RuntimeError("Couldn't write %s. Close Valheim and try again." % e.filename) from None
+    manager = manager_of(plugins)
+    if manager:
+        log("Adding Eldenheim to %s's mod list" % ("Gale" if manager == "gale" else "the mod manager"))
+        (register_gale if manager == "gale" else register_r2modman)(plugins, dest)
     shutil.rmtree(WORK, ignore_errors=True)
     return dest
 
@@ -196,6 +344,9 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Eldenheim Setup")
+        with contextlib.suppress(tk.TclError):
+            self.icon = tk.PhotoImage(file=str(PLUGIN / "icon.png"))
+            self.iconphoto(True, self.icon)
         self.geometry("720x520")
         self.minsize(560, 420)
         self.q = queue.Queue()
