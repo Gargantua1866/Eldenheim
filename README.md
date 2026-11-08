@@ -58,7 +58,7 @@ The same window updates, repairs and uninstalls, for the plugins folder chosen:
   entry in the mod manager's list, and Setup's own work folder and backup.
 
 To build the exe: `python installer/build.py [VALHEIM_DIR]` (needs the .NET SDK
-and `python -m pip install pyinstaller pycryptodome zstandard`). It writes
+and `python -m pip install pyinstaller zstandard`). It writes
 `build/package/EldenheimSetup-<version>.zip`, which holds the plugin and the
 tools but nothing from Elden Ring, so it can be shared.
 
@@ -69,7 +69,8 @@ shipped. The mod's data is generated from your own installed copy of Elden Ring.
 Shadow of the Erdtree is not needed. Its weapon styles are in the base game's own
 Data3 archive since patch 1.12, so every up-to-date copy has them.
 
-You need Python 3.10+ (`python -m pip install pycryptodome zstandard`), the
+You need Python 3.10+ (`python -m pip install zstandard`; outside Windows also
+`pycryptodome`), the
 .NET SDK, and Valheim with BepInEx. Run everything from this folder. Rust is only needed for the replay check
 below.
 

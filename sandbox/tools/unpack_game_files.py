@@ -13,7 +13,8 @@ be AES-encrypted in ranges; regulation.bin is AES-256-CBC over a DCX(ZSTD) BND4.
 This is a narrowed port of Ekey's ER.BDT.Tool (ER.BDT.Tool) plus the regulation
 key from SoulsFormats' RegulationDecryptor.
 
-Needs pycryptodome and zstandard:  python -m pip install pycryptodome zstandard
+Needs zstandard (python -m pip install zstandard), and outside Windows also
+pycryptodome; on Windows the system's own AES is used.
 The Oodle DLL (oo2core_6_win64.dll) is still read from ER_GAME_DIR by erfmt.py
 when the other tools decompress these .dcx files.
 
@@ -149,13 +150,44 @@ def rsa_decrypt(data: bytes, n: int, e: int) -> bytes:
     return bytes(out)
 
 
-def aes_ecb_decrypt(buf: bytearray, key: bytes, ranges) -> None:
-    from Crypto.Cipher import AES
+def aes_decrypt(key: bytes, data: bytes, iv: bytes = None) -> bytes:
+    """AES-ECB (no iv) or AES-CBC decryption of whole 16-byte blocks. On
+    Windows it uses the system's own AES (bcrypt.dll), so no extra package is
+    needed; elsewhere pycryptodome."""
+    if sys.platform != "win32":
+        from Crypto.Cipher import AES
+        return (AES.new(key, AES.MODE_ECB) if iv is None else AES.new(key, AES.MODE_CBC, iv)).decrypt(data)
+    import ctypes
+    from ctypes import byref, c_ulong, c_void_p, create_string_buffer, create_unicode_buffer, sizeof
 
-    cipher = AES.new(key, AES.MODE_ECB)
+    bcrypt = ctypes.WinDLL("bcrypt")
+
+    def check(status):
+        if status != 0:
+            raise OSError("bcrypt.dll AES failed: NTSTATUS 0x%08X" % (status & 0xFFFFFFFF))
+
+    alg, handle = c_void_p(), c_void_p()
+    check(bcrypt.BCryptOpenAlgorithmProvider(byref(alg), "AES", None, 0))
+    try:
+        mode = create_unicode_buffer("ChainingModeECB" if iv is None else "ChainingModeCBC")
+        check(bcrypt.BCryptSetProperty(alg, "ChainingMode", mode, sizeof(mode), 0))
+        check(bcrypt.BCryptGenerateSymmetricKey(alg, byref(handle), None, 0, key, len(key), 0))
+        try:
+            out, done = create_string_buffer(len(data)), c_ulong()
+            iv_buf = create_string_buffer(iv, len(iv)) if iv is not None else None
+            check(bcrypt.BCryptDecrypt(handle, data, len(data), None, iv_buf, len(iv) if iv else 0,
+                                       out, len(data), byref(done), 0))
+            return out.raw[:done.value]
+        finally:
+            bcrypt.BCryptDestroyKey(handle)
+    finally:
+        bcrypt.BCryptCloseAlgorithmProvider(alg, 0)
+
+
+def aes_ecb_decrypt(buf: bytearray, key: bytes, ranges) -> None:
     for start, end in ranges:
         if start != -1 and end != -1 and start != end:
-            buf[start:end] = cipher.decrypt(bytes(buf[start:end]))
+            buf[start:end] = aes_decrypt(key, bytes(buf[start:end]))
 
 
 def bhd_entries(bhd: bytes):
@@ -241,14 +273,13 @@ def unpack_sounds(game: Path, out: Path) -> None:
 
 
 def unpack_regulation(game: Path, out: Path) -> None:
-    from Crypto.Cipher import AES
     import zstandard
 
     raw = (game / "regulation.bin").read_bytes()
     iv, ciphertext = raw[:16], raw[16:]
     if len(ciphertext) % 16:
         ciphertext += b"\0" * (16 - len(ciphertext) % 16)
-    data = AES.new(REGULATION_KEY, AES.MODE_CBC, iv).decrypt(ciphertext)
+    data = aes_decrypt(REGULATION_KEY, ciphertext, iv)
     if data[:4] == b"DCX\0":
         raw_size, comp_size = struct.unpack_from(">II", data, 0x1C)
         data = zstandard.ZstdDecompressor().decompress(data[0x4C:0x4C + comp_size], max_output_size=raw_size)

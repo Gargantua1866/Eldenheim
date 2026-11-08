@@ -4,7 +4,7 @@ build/package/EldenheimSetup-<version>.zip.
 The exe holds the plugin's DLLs and the tool scripts, never Elden Ring data:
 that is made on the player's machine. Needs, on the build machine only:
 the .NET SDK, Valheim with BepInEx (for the plugin's references), and
-`python -m pip install pyinstaller pycryptodome zstandard`.
+`python -m pip install pyinstaller zstandard`.
 
     python installer/build.py [VALHEIM_DIR]
 """
@@ -65,7 +65,12 @@ def is_module(name):
         return False
 
 
-mods = {m for m in mods if is_module(m)}  # drops `from pathlib import Path` style names
+# Left out: pycryptodome (only the non-Windows fallback; Windows' own AES is
+# used), and Python's OpenSSL bindings (libcrypto/libssl; nothing is downloaded,
+# and hashlib falls back to its built-in sha256). A "Crypto" folder in a game
+# tool's download also just looks like a coin miner.
+EXCLUDE = ["Crypto", "Cryptodome", "ssl", "_ssl", "_hashlib", "cffi", "_cffi_backend"]
+mods = {m for m in mods if is_module(m) and m.split(".")[0] not in EXCLUDE}  # drops `from pathlib import Path` style names
 hidden = [a for m in sorted(mods) for a in ("--hidden-import", m)]
 print("hidden imports:", ", ".join(sorted(mods)))
 
@@ -78,6 +83,8 @@ cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--windowe
        "--name", "EldenheimSetup", "--icon", str(ROOT / "src" / "Eldenheim" / "icon.png"),
        "--distpath", str(STAGE / "dist"), "--workpath", str(STAGE / "work"), "--specpath", str(STAGE),
        "--exclude-module", "__pycache__", *hidden]
+for m in EXCLUDE:
+    cmd += ["--exclude-module", m]
 for d in data:
     cmd += ["--add-data", d]
 cmd.append(str(ROOT / "installer" / "eldenheim_setup.py"))
@@ -94,7 +101,9 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
 # Lint: nothing derived from the game may ship.
 bad = [n for n in names if re.search(r"\.(bin|ogg|dcx|param|bnk|rs)$|er-files|extracted", n)
        and "packed_codebooks" not in n]
+# ...and nothing that reads as crypto to someone skimming the folder.
+bad += [n for n in names if re.search(r"crypto|libssl", n, re.I)]
 if bad:
     out.unlink()
-    sys.exit(f"lint failed, game data in the zip: {bad}")
+    sys.exit(f"lint failed, game data or crypto-named files in the zip: {bad}")
 print(f"{out} ({out.stat().st_size / 1e6:.1f} MB, {len(names)} files)")
