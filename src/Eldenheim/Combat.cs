@@ -617,7 +617,9 @@ namespace Eldenheim
                     return false;
                 }
             }
-            Vector3 point = collider.ClosestPoint(bladeMid);
+            // ClosestPoint only measures these (it logs a warning for any other).
+            bool measurable = collider is BoxCollider || collider is SphereCollider || collider is CapsuleCollider || collider is MeshCollider m && m.convex;
+            Vector3 point = measurable ? collider.ClosestPoint(bladeMid) : bladeMid;
             if (point == bladeMid && character != null)
             {
                 point = collider.bounds.center;

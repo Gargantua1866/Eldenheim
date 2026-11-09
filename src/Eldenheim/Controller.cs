@@ -62,6 +62,7 @@ namespace Eldenheim
         private float _yawFrom, _yawTo;
 
         private static readonly AccessTools.FieldRef<Character, Vector3> RootMotion = AccessTools.FieldRefAccess<Character, Vector3>("m_rootMotion");
+        private static readonly AccessTools.FieldRef<Character, Vector3> CurrentVel = AccessTools.FieldRefAccess<Character, Vector3>("m_currentVel");
         private static readonly AccessTools.FieldRef<Character, float> MaxAirAltitude = AccessTools.FieldRefAccess<Character, float>("m_maxAirAltitude");
         private static readonly AccessTools.FieldRef<Character, bool> Running = AccessTools.FieldRefAccess<Character, bool>("m_running");
         private static readonly AccessTools.FieldRef<Character, float> LastGroundTouch = AccessTools.FieldRefAccess<Character, float>("m_lastGroundTouch");
@@ -475,9 +476,20 @@ namespace Eldenheim
         {
             Active = true;
             Sim = NewSim(Space.ToSim(_body.position), Space.YawToSim(transform.eulerAngles.y));
+            // On at the speed Valheim was moving (out of the water, say), not from a standstill.
+            Vector3 moving = _body.linearVelocity;
+            Sim.Speed = Mathf.Min(new Vector3(moving.x, 0f, moving.z).magnitude, ErData.SPRINT_SPEED);
             _level.Self = _body;
             _carry = Vector3.zero;
-            _bindings.IgnoreHeld();
+            // Wading out of deep water with the run key down sprints on (a held key sprints, it never dodges).
+            if (_vp.InWater())
+            {
+                _bindings.IgnoreHeld("Dodge", "Sprint");
+            }
+            else
+            {
+                _bindings.IgnoreHeld();
+            }
             _acc = 0f;
             _tickFrom = _tickTo = _expected = _body.position;
             _yawFrom = _yawTo = transform.eulerAngles.y;
@@ -492,6 +504,9 @@ namespace Eldenheim
         {
             Active = false;
             _body.useGravity = true;
+            // Valheim's own motion (swimming, say) carries on at the speed the body had, not its own stale one.
+            Vector3 moving = _body.linearVelocity;
+            CurrentVel(_vp) = new Vector3(moving.x, 0f, moving.z);
             _combat.StopTrails();
             Hitboxes.Begin();
             Hitboxes.End();

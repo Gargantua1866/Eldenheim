@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Eldenheim.Sim;
 using UnityEngine;
 using Input = Eldenheim.Sim.Input;
@@ -109,10 +110,14 @@ namespace Eldenheim
         }
 
         /// <summary>Eldenheim takes the player over: what is held now was meant for Valheim.</summary>
-        public void IgnoreHeld()
+        public void IgnoreHeld(params string[] keep)
         {
             foreach (string action in Actions)
             {
+                if (keep.Contains(action))
+                {
+                    continue;
+                }
                 if (Read(Settings.Keyboard[action].Value))
                 {
                     _heldOver.Add(action);
