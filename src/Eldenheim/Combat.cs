@@ -280,14 +280,15 @@ namespace Eldenheim
             return (right, left);
         }
 
-        /// <summary>How far above level a throw leaves, as a slope: every throw flies the same arc from the way the body faces.</summary>
-        private const float ThrowLift = 0.08f;
+        /// <summary>The lock-on target's centre: throws go that way instead of the way the player looks (locked on, the look is tipped down for the camera).</summary>
+        public static Vector3? AimAt;
 
         /// <summary>Thrown from the middle of the body, at chest height, a little ahead.</summary>
-        private static Vector3 ThrowOrigin(VPlayer vp)
+        private static Vector3 ThrowOrigin(VPlayer vp, Vector3 toward)
         {
             Vector3 chest = vp.transform.position + Vector3.up * 1.3f;
-            Vector3 from = chest + vp.transform.forward * 0.5f;
+            toward.y = 0f;
+            Vector3 from = chest + (toward.sqrMagnitude > 1e-4f ? toward.normalized : vp.transform.forward) * 0.5f;
             return Physics.Linecast(chest, from, GroundMask, QueryTriggerInteraction.Ignore) ? chest : from;
         }
 
@@ -315,8 +316,11 @@ namespace Eldenheim
             {
                 return false;
             }
-            Vector3 from = ThrowOrigin(vp);
-            Vector3 dir = (vp.transform.forward + Vector3.up * ThrowLift).normalized;
+            // As Valheim's spear (Attack.GetProjectileSpawnPoint, FireProjectileBurst): the way the
+            // player looks, tipped by the attack's launch angle, always at the same speed.
+            Vector3 aim = AimAt.HasValue ? (AimAt.Value - vp.GetEyePoint()).normalized : vp.GetAimDir(vp.transform.position);
+            Vector3 from = ThrowOrigin(vp, aim);
+            Vector3 dir = throwing.m_launchAngle != 0f ? Quaternion.AngleAxis(throwing.m_launchAngle, Vector3.Cross(Vector3.up, aim)) * aim : aim;
             GameObject go = Object.Instantiate(throwing.m_attackProjectile, from, Quaternion.LookRotation(dir));
             if (borrowed && weapon.m_dropPrefab != null)
             {

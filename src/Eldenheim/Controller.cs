@@ -1108,11 +1108,15 @@ namespace Eldenheim
 
         private bool Shown(GameObject item) => item != null && item.activeInHierarchy && !_hidden.Contains(item);
 
-        /// <summary>Grip to tip of ER's pole classes (tools/extract.py BLADES): a pole is held where its tip reaches as far.</summary>
+        /// <summary>
+        /// Grip to tip of ER's pole classes: a pole is held where its tip reaches as far.
+        /// The halberds' are measured from the game's models (wp_a_1001, 1003, 0907: the
+        /// box's far end from the model's origin, the grip); the rest follow tools/extract.py BLADES.
+        /// </summary>
         private static readonly Dictionary<string, float> PoleTip = new Dictionary<string, float>
         {
-            { "Halberd", 1.85f }, { "Banished Knight's Halberd", 1.85f }, { "Short Spear", 1.66f }, { "Smithscript Spear", 1.66f }, { "Great Spear", 2.26f },
-            { "Guardian's Swordspear", 1.9f }, { "Cross-Naginata", 2.0f },
+            { "Halberd", 1.87f }, { "Banished Knight's Halberd", 1.90f }, { "Short Spear", 1.66f }, { "Smithscript Spear", 1.66f }, { "Great Spear", 2.26f },
+            { "Guardian's Swordspear", 1.84f }, { "Cross-Naginata", 2.0f },
         };
 
         private readonly Dictionary<GameObject, Vector3> _poleRest = new Dictionary<GameObject, Vector3>();
@@ -1856,7 +1860,7 @@ namespace Eldenheim
             }
             AirAndSkills(inp);
             Character aim = LockTarget != null ? LockTarget : AutoTarget(inp);
-            Vec3? target = aim != null ? Space.ToSim(aim.transform.position) : (Vec3?)null;
+            Vec3? target = aim != null ? Space.ToSim(aim.transform.position) : ThrowFacing();
             bool wasActing = Sim.State == StateKind.Act;
             ActionId wasAct = Sim.Act.Id;
             float wasF = Sim.Act.F;
@@ -1865,6 +1869,7 @@ namespace Eldenheim
             Vec3 before = Sim.Pos;
             Sim.Step(inp, _level, target, InCombat());
             Ice(before);
+            Combat.AimAt = LockTarget != null ? LockTarget.GetCenterPoint() : (Vector3?)null;
             _combat.AfterTick(_vp, Sim, _rightBlade, _leftBlade, Log);
             FlushSwingLog();
             Steps.Started started = _steps?.AfterTick(Sim) ?? Steps.Started.None;
@@ -2651,6 +2656,24 @@ namespace Eldenheim
                 }
             }
             return swinging ? _autoTarget : null;
+        }
+
+        /// <summary>
+        /// A Smithscript attack still to throw, with no target: the body turns
+        /// the camera's way, as far as the attack can turn, for the throw to
+        /// leave the way the player looks.
+        /// </summary>
+        private Vec3? ThrowFacing()
+        {
+            bool throwing = Sim.AirAttackState is AirAttack air ? air.Def.Throw != 0 && air.F < air.Def.To
+                : Sim.State == StateKind.Act && Sim.Act.Id.IsAttack && Sim.Act.Id.Def().Hits.Any(h => h.Throw != 0 && Sim.Act.F < h.To);
+            if (!throwing || GameCamera.instance == null)
+            {
+                return null;
+            }
+            Vector3 way = GameCamera.instance.transform.forward;
+            way.y = 0f;
+            return way.sqrMagnitude > 1e-4f ? Space.ToSim(transform.position + way.normalized * 20f) : (Vec3?)null;
         }
 
         /// <summary>What lock-on can target: living enemies (and PvP players) in range.</summary>

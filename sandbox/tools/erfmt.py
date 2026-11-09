@@ -16,10 +16,6 @@ _oodle = None
 _server_proc = None
 
 
-# Magic string, but honestly python.org isn't stripping this away ever -- also 10mb
-EMBED_PYTHON_URL = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip"
-
-
 
 def _ensure_wine_python():
     # == Linux/MacOS function ==
@@ -48,26 +44,7 @@ def _ensure_wine_python():
     if py_exe.exists():
         return str(py_exe)
 
-    # If nothing else, automatically download and unpack Python embeddable zip into cache_dir
-    print("Non-Windows platform detected: bootstrapping embedded Windows Python for Wine...")
-    import urllib.request
-    import zipfile
-
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = cache_dir / "python-embed.zip"
-    try:
-        urllib.request.urlretrieve(EMBED_PYTHON_URL, zip_path)
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            zf.extractall(cache_dir)
-        if zip_path.exists():
-            zip_path.unlink()
-        print(f"Bootstrapped embedded Windows Python to {cache_dir}")
-        return str(py_exe)
-    except Exception as exc:
-        sys.exit(
-            f"Failed to automatically download embedded Windows Python for Wine: {exc}\n"
-            f"Please ensure you have an active internet connection, or install Python inside Wine and set WINE_PYTHON."
-        )
+    sys.exit("No Windows Python found under Wine: install Python inside Wine and set WINE_PYTHON.")
 
 
 def _get_server():
