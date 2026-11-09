@@ -618,10 +618,12 @@ namespace Eldenheim
                 }
             }
             Vector3 point = collider.ClosestPoint(bladeMid);
-            if (point == bladeMid)
+            if (point == bladeMid && character != null)
             {
                 point = collider.bounds.center;
             }
+            // Otherwise the blade is inside it, or it's a non-convex mesh ClosestPoint can't
+            // measure (an Ancient tree: its bounds' centre is high in the crown): where the blade is.
             // Something solid was struck: a sledge's heavy slams here.
             _slamAt = _slamAt ?? point;
             if (thrown == null && Slams(weapon) && !Heavy(p) && !_impactDone)

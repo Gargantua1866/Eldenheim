@@ -459,6 +459,8 @@ namespace Eldenheim
             JumpAttackChains = true,
             NoFlinch = true,
             MinLandingFall = 1.5f,
+            // Below Valheim's own fall-damage height (Character.c_MinFallHeight), a drop doesn't stop a run.
+            StopLandingFall = 4f,
             StepDown = 0.6f,
             LightLandings = true,
             JumpTurnFrames = 6f,

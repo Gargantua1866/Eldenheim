@@ -189,6 +189,8 @@ namespace Eldenheim.Sim
         public bool NoFlinch;
         /// <summary>Walking off a drop smaller than this lands without a landing animation (metres; 0: always one).</summary>
         public float MinLandingFall;
+        /// <summary>A drop walked or run off lands in the fall landing (which stops) only from this high; a shorter one lands as a jump does, running on (0: every one).</summary>
+        public float StopLandingFall;
         /// <summary>A drop this small (metres) while walking is followed down instead of falling.</summary>
         public float StepDown;
         /// <summary>A jump that lands while moving but not sprinting plays the light landing (the running one is for sprints).</summary>
@@ -1195,7 +1197,7 @@ namespace Eldenheim.Sim
                 // A step or a small drop: walk on.
                 State = StateKind.Ground;
             }
-            else if (!jumped)
+            else if (!jumped && fall >= StopLandingFall)
             {
                 Start(ActionId.LandFall);
             }
