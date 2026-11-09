@@ -6,7 +6,9 @@
   - the guard break's and the parry's (ErSounds.GuardBreakFile, ParryFile).
 
 Reads the sandbox's player_sounds.bin (ERSD v2) and sounds/*.ogg, made by
-sandbox/tools/setup.py.
+sandbox/tools/setup.py. A recording not baked there (bake_sounds.py
+--no-media, as EldenheimSetup runs it) is converted from the game's sound
+banks instead, so only these few are ever written.
 
     python tools/pick_sounds.py
 """
@@ -79,12 +81,21 @@ def main():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
     missing = []
+    banks = None
     for media in sorted(used):
         src = ASSETS / "sounds" / f"{media}.ogg"
         if src.exists():
             shutil.copy2(src, OUT / src.name)
+            continue
+        if banks is None:
+            sys.path.insert(0, str(ROOT / "sandbox" / "tools"))
+            import bake_sounds
+            banks = bake_sounds.load_banks()
+        ogg, why = bake_sounds.recording(banks, media)
+        if ogg is None:
+            missing.append(f"{src.name} ({why})")
         else:
-            missing.append(src.name)
+            (OUT / src.name).write_bytes(ogg)
     print(f"{OUT}: {len(used) - len(missing)} recordings" + (f", missing {missing}" if missing else ""))
 
 

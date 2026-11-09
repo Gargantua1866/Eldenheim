@@ -16,7 +16,9 @@ such surroundings, so it bakes one choice of each (FLOOR_MATERIAL,
 ARMOUR_MATERIAL, SWITCHES below).
 
 Reads the unpacked sd/ banks; writes only derived files, which are not part
-of the repository. Usage: python tools/bake_sounds.py
+of the repository. Usage: python tools/bake_sounds.py [--no-media]
+(--no-media: the table only; every recording is still converted, to know
+which ones can be, but none is written.)
 """
 import struct
 import sys
@@ -81,11 +83,29 @@ def missing_banks():
     return [name for name in BANKS if not (paths.er_files() / name).exists()]
 
 
-def main():
+def load_banks():
     missing = missing_banks()
     if missing:
         sys.exit("Missing from %s: %s\nUnpack them from the sd archive too (see README)." % (paths.er_files(), ", ".join(missing)))
-    banks = [wwise.Bank((paths.er_files() / name).read_bytes()) for name in BANKS]
+    return [wwise.Bank((paths.er_files() / name).read_bytes()) for name in BANKS]
+
+
+def recording(banks, mid):
+    """A recording as Ogg Vorbis, or the reason it can't be."""
+    data = next((bank.media[mid] for bank in banks if mid in bank.media), None)
+    if data is None:
+        loose = paths.er_files() / "sd" / "wem" / str(mid)[:2] / f"{mid}.wem"
+        data = loose.read_bytes() if loose.exists() else None
+    if data is None:
+        return None, "not found"
+    try:
+        return wem.to_ogg(data), None
+    except ValueError as error:
+        return None, str(error)
+
+
+def main(write_media=True):
+    banks = load_banks()
 
     src = Source()
     gathered = gather(src)
@@ -145,23 +165,19 @@ def main():
 
     # The recordings, as Ogg Vorbis.
     media = sorted({m for t in trees for m in wwise.media_ids(t)})
-    MEDIA.mkdir(parents=True, exist_ok=True)
-    converted, failed = 0, []
+    if write_media:
+        MEDIA.mkdir(parents=True, exist_ok=True)
+    have, failed = set(), []
     for mid in media:
-        data = next((bank.media[mid] for bank in banks if mid in bank.media), None)
-        if data is None:
-            loose = paths.er_files() / "sd" / "wem" / str(mid)[:2] / f"{mid}.wem"
-            data = loose.read_bytes() if loose.exists() else None
-        if data is None:
-            failed.append((mid, "not found"))
+        ogg, why = recording(banks, mid)
+        if ogg is None:
+            failed.append((mid, why))
             continue
-        try:
-            (MEDIA / f"{mid}.ogg").write_bytes(wem.to_ogg(data))
-            converted += 1
-        except ValueError as error:
-            failed.append((mid, str(error)))
+        if write_media:
+            (MEDIA / f"{mid}.ogg").write_bytes(ogg)
+        have.add(mid)
+    converted = len(have)
     # Drop trees whose recordings couldn't all be converted.
-    have = {mid for mid in media if (MEDIA / f"{mid}.ogg").exists()}
 
     def prune(tree):
         if tree[0] == "media":
@@ -194,4 +210,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(write_media="--no-media" not in sys.argv[1:])

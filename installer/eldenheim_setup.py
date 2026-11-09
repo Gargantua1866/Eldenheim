@@ -323,7 +323,10 @@ def generate_data(game, log):
 
     steps = [
         ("Unpacking the game files", sandbox_tools / "unpack_game_files.py", []),
-        ("Reading actions, animations and sounds", sandbox_tools / "setup.py", []),
+        ("Reading actions", sandbox_tools / "extract.py", []),
+        ("Reading animations", sandbox_tools / "bake_anims.py", []),
+        # The sound table only: pick_sounds converts just the few recordings the mod plays.
+        ("Reading sounds", sandbox_tools / "bake_sounds.py", ["--no-media"]),
         ("Baking animations for Unity", tools / "bake_unity.py", ["--all", "build/eldenheim_anims_all.bin"]),
         ("Exporting the combat data", tools / "export_data.py", ["build/eldenheim_data.bin"]),
         ("Picking the sounds", tools / "pick_sounds.py", []),
@@ -421,7 +424,7 @@ def install(game, plugins, log, repair=False):
     else:
         log("The installed data is up to date: keeping it.")
         data = {n: dest / n for n in data_names}
-    log("\n== Installing to %s ==" % dest, step=6)
+    log("\n== Installing to %s ==" % dest, step=8)
     files = {n: PLUGIN / n for n in PLUGIN_FILES}
     files.update(data)
     try:
@@ -536,7 +539,7 @@ class App(tk.Tk):
         }
         for b in self.buttons.values():
             b.pack(side="left", padx=4)
-        self.bar = ttk.Progressbar(frame, maximum=6)
+        self.bar = ttk.Progressbar(frame, maximum=8)
         self.bar.grid(row=5, column=0, columnspan=3, sticky="ew")
         self.text = tk.Text(frame, height=16, wrap="word", state="disabled")
         self.text.grid(row=6, column=0, columnspan=3, sticky="nsew", pady=(8, 0))
