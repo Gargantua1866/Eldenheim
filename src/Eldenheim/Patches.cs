@@ -41,6 +41,7 @@ namespace Eldenheim
             Try(h, typeof(Character), nameof(Character.SetTempParent), postfix: nameof(TempParent));
             Try(h, typeof(Projectile), "UpdateVisual", prefix: nameof(ProjectileVisual));
             Try(h, typeof(Projectile), "OnHit", postfix: nameof(ProjectileHit));
+            Try(h, typeof(MonoUpdaters), "FixedUpdate", prefix: nameof(PhysicsStep));
             try
             {
                 h.Patch(AccessTools.Method(typeof(Player), "UpdateStats", new[] { typeof(float) }),
@@ -143,6 +144,8 @@ namespace Eldenheim
         {
             Controller.For(__instance);
         }
+
+        private static void PhysicsStep() => Controller.BeforePhysicsStep();
 
         private static bool UpdateMotion(Character __instance, float dt)
         {

@@ -570,9 +570,13 @@ namespace Eldenheim.Anim
                 hip[s] = hips + hipsModel * Offset(Hips, up);
                 knee[s] = hip[s] + _model[up] * Offset(up, mid);
                 foot[s] = knee[s] + _model[mid] * Offset(mid, end);
-                float? g = ground(foot[s]);
-                float wanted = planted && g.HasValue && Mathf.Abs(g.Value) <= FOOT_REACH ? g.Value : 0f;
-                _footLift[s] += (wanted - _footLift[s]) * (1f - Mathf.Exp(-FOOT_SETTLE * dt));
+                // No time passed (or an extra physics step's pose): the feet stay as they are, without the raycast.
+                if (dt > 0f)
+                {
+                    float? g = ground(foot[s]);
+                    float wanted = planted && g.HasValue && Mathf.Abs(g.Value) <= FOOT_REACH ? g.Value : 0f;
+                    _footLift[s] += (wanted - _footLift[s]) * (1f - Mathf.Exp(-FOOT_SETTLE * dt));
+                }
             }
             float sink = Mathf.Min(Mathf.Min(_footLift[0], _footLift[1]), 0f);
             hips.y += sink;

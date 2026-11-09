@@ -1521,11 +1521,14 @@ namespace Eldenheim
 
         private void Update()
         {
+            // Less than deltaTime after an extra physics step's pose (PoseForStep), which already moved the pose's timers on.
+            float poseDt = Time.time - _posedAt;
+            _posedAt = Time.time;
             if (Remote)
             {
                 if (Active && Sim != null)
                 {
-                    Pose(Sim, Time.deltaTime, (Time.time - Time.fixedTime) / Consts.DT);
+                    Pose(Sim, poseDt, (Time.time - Time.fixedTime) / Consts.DT, _clock + (Time.time - Time.fixedTime));
                 }
                 WritePose();
                 return;
@@ -1573,7 +1576,7 @@ namespace Eldenheim
             LockSwitching(input && !menu);
             // Every rendered frame, at this frame's point between sim ticks (the
             // physics step runs at 50 Hz: a pose made there steps visibly).
-            Pose(Sim, Time.deltaTime, (_acc + Time.time - Time.fixedTime) / Consts.DT);
+            Pose(Sim, poseDt, (_acc + Time.time - Time.fixedTime) / Consts.DT, _clock + (Time.time - Time.fixedTime));
             // Written here, before Unity updates particles (and cloth): a torch's
             // flame emitted from where Valheim's animator had left the hand
             // trailed fire between the two places.
@@ -1603,6 +1606,52 @@ namespace Eldenheim
                 return;
             }
             _posedFrame = Time.frameCount;
+            _pose?.Write();
+        }
+
+        private float _posedAt;
+        private int _stepFrame = -1;
+
+        /// <summary>Before each physics step (MonoUpdaters.FixedUpdate, whose last updater is the swing trails).</summary>
+        internal static void BeforePhysicsStep()
+        {
+            foreach (Controller c in All)
+            {
+                try
+                {
+                    c.PoseForStep();
+                }
+                catch (System.Exception e)
+                {
+                    // Thrown from here it would stop every Valheim updater in this physics step.
+                    Plugin.Report("pose for a physics step failed: " + e);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Valheim's animator runs after each physics step and overwrites the
+        /// bones. A slow frame has several steps, and from the second on the
+        /// swing trail and the blades would read Valheim's pose (the tip 2 m off
+        /// the swing): those steps get the pose at their own time. Not outside
+        /// attacks, where nothing reads the bones in the physics step.
+        /// </summary>
+        private void PoseForStep()
+        {
+            // The frame's first step still has the pose the last Update wrote.
+            if (_stepFrame != Time.frameCount)
+            {
+                _stepFrame = Time.frameCount;
+                return;
+            }
+            if (!Active || Sim == null || Sim.State != StateKind.Act && !Sim.AirAttackState.HasValue)
+            {
+                return;
+            }
+            // This step hasn't run yet: the sim and clock are a step behind Time.time here.
+            float step = Time.fixedDeltaTime;
+            Pose(Sim, Time.time - _posedAt, (_acc + step) / Consts.DT, _clock + step, feet: false);
+            _posedAt = Time.time;
             _pose?.Write();
         }
 
@@ -2985,7 +3034,7 @@ namespace Eldenheim
         // --- The pose -------------------------------------------------------------
 
         /// <summary>The pose at <paramref name="alpha"/> sim ticks past the last one (above 1: a frame drawn before the next tick).</summary>
-        private void Pose(SimPlayer p, float dt, float alpha)
+        private void Pose(SimPlayer p, float dt, float alpha, float time, bool feet = true)
         {
             if (_pose == null)
             {
@@ -2998,7 +3047,7 @@ namespace Eldenheim
             {
                 return;
             }
-            if (!_chooser.Update(p, _clock + (Time.time - Time.fixedTime), dt, alpha))
+            if (!_chooser.Update(p, time, dt, alpha))
             {
                 return;
             }
@@ -3034,7 +3083,7 @@ namespace Eldenheim
                     return null;
                 }
                 return groundY - _bodyY;
-            }, planted, dt);
+            }, planted, feet ? dt : 0f);
             // Two-handed, the left hand goes onto the handle.
             // (Not paired items: each hand holds its own axe, knife or claw.)
             // Not while a swap plays: the hands trade the weapon around the
