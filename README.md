@@ -291,8 +291,8 @@ Axe's and Hammer's heavies (the Hammer spins first, and slams with a sledge's
 area blow where it lands) and every Dagger attack. The thrown weapon is gone
 from the hand for a moment and reforms there; a spear thrown with ThrowSpears
 on is gone for good. Throws aim as Valheim's spear does: the way you look, up,
-down or to the side, at the same speed and drop every time (locked on: at the
-target). The axe tumbles and the hammer spins flat as they fly.
+down or to the side, at the same speed and drop every time. Locked on, they go
+at the target, lifted to make up for the drop at that range. The axe tumbles and the hammer spins flat as they fly.
 Two-handing the Dagger, from either hand, shows a knife in each hand and throws
 from both.
 

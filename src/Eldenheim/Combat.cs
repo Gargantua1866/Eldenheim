@@ -283,6 +283,9 @@ namespace Eldenheim
         /// <summary>The lock-on target's centre: throws go that way instead of the way the player looks (locked on, the look is tipped down for the camera).</summary>
         public static Vector3? AimAt;
 
+        /// <summary>Degrees more upward the Smithscript Axe leaves when aimed by hand. ESTIMATE, to tune by eye.</summary>
+        private const float AxeLift = 6f;
+
         /// <summary>Thrown from the middle of the body, at chest height, a little ahead.</summary>
         private static Vector3 ThrowOrigin(VPlayer vp, Vector3 toward)
         {
@@ -316,18 +319,29 @@ namespace Eldenheim
             {
                 return false;
             }
-            // As Valheim's spear (Attack.GetProjectileSpawnPoint, FireProjectileBurst): the way the
-            // player looks, tipped by the attack's launch angle, always at the same speed.
-            Vector3 aim = AimAt.HasValue ? (AimAt.Value - vp.GetEyePoint()).normalized : vp.GetAimDir(vp.transform.position);
-            Vector3 from = ThrowOrigin(vp, aim);
-            Vector3 dir = throwing.m_launchAngle != 0f ? Quaternion.AngleAxis(throwing.m_launchAngle, Vector3.Cross(Vector3.up, aim)) * aim : aim;
+            string cls = ErData.Weapons[SwingMoveset(p).Weapon].Name;
+            Vector3 from, dir;
+            if (AimAt.HasValue)
+            {
+                from = ThrowOrigin(vp, AimAt.Value - vp.transform.position);
+                dir = (AimAt.Value - from).normalized;
+            }
+            else
+            {
+                // As Valheim's spear (Attack.GetProjectileSpawnPoint, FireProjectileBurst): the way the
+                // player looks, tipped by the attack's launch angle, always at the same speed.
+                Vector3 aim = vp.GetAimDir(vp.transform.position);
+                from = ThrowOrigin(vp, aim);
+                // A negative angle about this axis tips the throw up.
+                float angle = throwing.m_launchAngle - (cls == "Smithscript Axe" ? AxeLift : 0f);
+                dir = angle != 0f ? Quaternion.AngleAxis(angle, Vector3.Cross(Vector3.up, aim)) * aim : aim;
+            }
             GameObject go = Object.Instantiate(throwing.m_attackProjectile, from, Quaternion.LookRotation(dir));
             if (borrowed && weapon.m_dropPrefab != null)
             {
                 // Every client (this one too) shows it from the projectile's ZDO (Patches: Projectile.UpdateVisual).
                 ZDO zdo = go.GetComponent<ZNetView>()?.GetZDO();
                 zdo?.Set(ThrownModel, weapon.m_dropPrefab.name);
-                string cls = ErData.Weapons[SwingMoveset(p).Weapon].Name;
                 zdo?.Set(ThrownSpin, cls == "Smithscript Axe" ? 1 : cls == "Smithscript Hammer" ? 2 : 0);
                 ShowThrownModel(go.GetComponent<Projectile>());
             }
@@ -360,6 +374,11 @@ namespace Eldenheim
             bool consume = Settings.ThrowSpears.Value && throwing.m_consumeItem && !IsHarpoon(weapon) && !borrowed;
             Projectile projectile = go.GetComponent<Projectile>();
             Vector3 velocity = dir * throwing.m_projectileVel;
+            if (AimAt.HasValue && projectile != null && throwing.m_projectileVel > 0f)
+            {
+                // Locked on: lift it by what it falls on the way, so it arrives at the target.
+                velocity.y += 0.5f * projectile.m_gravity * Mathf.Min(Vector3.Distance(AimAt.Value, from) / throwing.m_projectileVel, 2f);
+            }
             go.GetComponent<IProjectile>()?.Setup(vp, velocity, throwing.m_attackHitNoise, data, consume ? weapon : null, null);
             if (Slams(weapon) && projectile != null)
             {
