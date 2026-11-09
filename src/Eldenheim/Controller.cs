@@ -840,7 +840,7 @@ namespace Eldenheim
                 Show(right, !twoLeft && SwapHiding() != SwapKind.NextWeapon && !thrownRight);
             }
             SheatheIdleHand(p);
-            bool twinChanged = TwinBlade(p, right, thrownLeft);
+            bool twinChanged = TwinBlade(p, twoLeft ? left : right, thrownLeft);
             // Re-measure the blades whenever what sits on an attach point changed.
             bool slide = false;
             if (twinChanged || p.Grip != _lastGrip || right != _lastRightInstance || left != _lastLeftInstance)
@@ -905,22 +905,23 @@ namespace Eldenheim
 
         /// <summary>
         /// Two-handing the Smithscript Dagger throws from both hands: the left
-        /// shows a copy of the right's knife, whatever is equipped there. True if the copy came or went.
+        /// shows a copy of the knife two-handed (either hand's goes to the right
+        /// attach point), whatever is equipped there. True if the copy came or went.
         /// </summary>
-        private bool TwinBlade(SimPlayer p, GameObject right, bool thrownLeft)
+        private bool TwinBlade(SimPlayer p, GameObject knife, bool thrownLeft)
         {
-            bool want = p.Grip == Grip.TwoHandRight && right != null && _retarget.LeftAttach != null
-                        && !Hands.IsPair(Right) && ErData.Weapons[p.Weapon].Category == 53;
+            bool want = p.Grip != Grip.OneHand && knife != null && _retarget.LeftAttach != null
+                        && !Hands.IsPair(Right) && ErData.Weapons[p.Moveset().Weapon].Category == 53;
             bool changed = false;
-            if (_twin != null && (!want || _twinOf != right))
+            if (_twin != null && (!want || _twinOf != knife))
             {
                 DropTwin();
                 changed = true;
             }
             if (want && _twin == null)
             {
-                _twinOf = right;
-                _twin = Instantiate(right, _retarget.LeftAttach, false);
+                _twinOf = knife;
+                _twin = Instantiate(knife, _retarget.LeftAttach, false);
                 foreach (Collider c in _twin.GetComponentsInChildren<Collider>(true))
                 {
                     Destroy(c);
@@ -933,7 +934,7 @@ namespace Eldenheim
             }
             if (_twin != null)
             {
-                bool show = !thrownLeft && SwapHiding() != SwapKind.NextWeapon;
+                bool show = !thrownLeft && SwapHiding() != (p.Grip == Grip.TwoHandLeft ? SwapKind.NextLeft : SwapKind.NextWeapon);
                 foreach (Renderer r in _twin.GetComponentsInChildren<Renderer>(true))
                 {
                     r.enabled = show;
@@ -1855,7 +1856,7 @@ namespace Eldenheim
             }
             AirAndSkills(inp);
             Character aim = LockTarget != null ? LockTarget : AutoTarget(inp);
-            Vec3? target = aim != null ? Space.ToSim(aim.transform.position) : ThrowFacing();
+            Vec3? target = aim != null ? Space.ToSim(aim.transform.position) : (Vec3?)null;
             bool wasActing = Sim.State == StateKind.Act;
             ActionId wasAct = Sim.Act.Id;
             float wasF = Sim.Act.F;
@@ -1864,7 +1865,6 @@ namespace Eldenheim
             Vec3 before = Sim.Pos;
             Sim.Step(inp, _level, target, InCombat());
             Ice(before);
-            Combat.AimAt = aim != null ? aim.GetCenterPoint() : (Vector3?)null;
             _combat.AfterTick(_vp, Sim, _rightBlade, _leftBlade, Log);
             FlushSwingLog();
             Steps.Started started = _steps?.AfterTick(Sim) ?? Steps.Started.None;
@@ -2651,24 +2651,6 @@ namespace Eldenheim
                 }
             }
             return swinging ? _autoTarget : null;
-        }
-
-        /// <summary>
-        /// A Smithscript attack still to throw, with no target: the body turns
-        /// the camera's way, as far as the attack can turn, for the throw to
-        /// leave the way the crosshair points.
-        /// </summary>
-        private Vec3? ThrowFacing()
-        {
-            bool throwing = Sim.AirAttackState is AirAttack air ? air.Def.Throw != 0 && air.F < air.Def.To
-                : Sim.State == StateKind.Act && Sim.Act.Id.IsAttack && Sim.Act.Id.Def().Hits.Any(h => h.Throw != 0 && Sim.Act.F < h.To);
-            if (!throwing || GameCamera.instance == null)
-            {
-                return null;
-            }
-            Vector3 way = GameCamera.instance.transform.forward;
-            way.y = 0f;
-            return way.sqrMagnitude > 1e-4f ? Space.ToSim(transform.position + way.normalized * 20f) : (Vec3?)null;
         }
 
         /// <summary>What lock-on can target: living enemies (and PvP players) in range.</summary>

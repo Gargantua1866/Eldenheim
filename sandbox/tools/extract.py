@@ -255,6 +255,11 @@ F_CANCEL_L1_PAIRED, F_CANCEL_LH = 117, 16
 SP_CHARGING = 100280
 # Guarding through an attack (the Carian Knight's Sword's charging heavies).
 F_GUARD = 3
+# TAE 67 effects the game's script (ExecAttack) reads to change what the next
+# press plays, while they're on: a light press goes to this swing, a heavy to
+# the second heavy. Milady's chains are made of them. 19915 outranks the others.
+SP_NEXT_LIGHT = ((19915, 2), (19903, 3), (19904, 4))
+SP_NEXT_HEAVY2 = 19912
 EVENT_BLEND = 16
 
 # Weapon-independent actions: (Rust variant, TAE file, animation id).
@@ -604,6 +609,24 @@ def fnum(v):
     return "NEVER" if v >= NEVER else f"{v:.1f}"
 
 
+def effect_window(anim, effect):
+    """The frames a TAE 67 effect is on, if the animation has it."""
+    found = sorted((frames(e.start), frames(e.end)) for e in anim.events if e.type == 67 and e.s32(0) == effect)
+    return found[0] if found else None
+
+
+def next_light(anim):
+    for effect, swing in SP_NEXT_LIGHT:
+        window = effect_window(anim, effect)
+        if window:
+            return (*window, swing)
+    return (0.0, 0.0, 0)
+
+
+def next_heavy(anim):
+    return effect_window(anim, SP_NEXT_HEAVY2) or (0.0, 0.0)
+
+
 def hit_events(anim):
     return sorted((frames(e.start), frames(e.end), e.s32(2)) for e in anim.events if e.type == 1)
 
@@ -792,6 +815,8 @@ def action_def(src, name, file, anim_id, variation, reaction=False, span=None, b
         "motion: &[" + ", ".join("[%.3f, %.3f, %.3f]" % m for m in motion) + "]",
         "speed: " + speed_literal(anim),
         "guard: (%.1f, %.1f)" % (windows(anim, F_GUARD)[0] if variation is not None and windows(anim, F_GUARD) else (0.0, 0.0)),
+        "chain_light: (%.1f, %.1f, %d)" % next_light(anim),
+        "chain_heavy: (%.1f, %.1f)" % next_heavy(anim),
     ]
     return "ActionDef { " + ", ".join(fields) + " }"
 

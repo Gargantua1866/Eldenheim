@@ -130,6 +130,19 @@ namespace Eldenheim.Sim
         public float[][] Speed;
         /// <summary>Frames the character guards through the attack (the Carian Knight's Sword's charging heavies).</summary>
         public float GuardFrom, GuardTo;
+        /// <summary>
+        /// While on, a light press goes to this swing of the chain (2-4) instead of
+        /// the usual next one (the game's next-attack effects); 0 is none.
+        /// </summary>
+        public float ChainLightFrom, ChainLightTo;
+        public byte ChainLightSwing;
+        /// <summary>While on, a heavy press goes to the second heavy.</summary>
+        public float ChainHeavyFrom, ChainHeavyTo;
+
+        /// <summary>The swing of the chain (2-4) a light press goes to at this frame, or 0.</summary>
+        public int LightAt(float frame) => ChainLightSwing != 0 && frame >= ChainLightFrom && frame < ChainLightTo ? ChainLightSwing : 0;
+
+        public bool Heavy2At(float frame) => frame >= ChainHeavyFrom && frame < ChainHeavyTo;
 
         public float SpeedAt(float frame) => SpeedAt(Speed, frame);
 

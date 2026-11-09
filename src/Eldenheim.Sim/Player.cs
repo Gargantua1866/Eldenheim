@@ -977,9 +977,9 @@ namespace Eldenheim.Sim
                             case Req.Jump:
                                 StartJump(inp, target);
                                 return false;
-                            case Req.Light: next = NextLight(a.Id); break;
-                            case Req.Heavy: next = NextHeavy(a.Id); break;
-                            default: next = NextLeft(a.Id); break;
+                            case Req.Light: next = NextLight(a.Id, a.F); break;
+                            case Req.Heavy: next = NextHeavy(a.Id, a.F); break;
+                            default: next = NextLeft(a.Id, a.F); break;
                         }
                         if (next is ActionId n)
                         {
@@ -1344,14 +1344,26 @@ namespace Eldenheim.Sim
             }
         }
 
-        private ActionId? NextLight(ActionId from)
+        private ActionId? NextLight(ActionId from, float f)
         {
+            // The attack's own say first (Milady's chains).
+            int swing = from.Def().LightAt(f);
+            if (swing != 0)
+            {
+                return Pick((AttackKind)((int)AttackKind.Light1 + swing - 1), AttackKind.Light1);
+            }
             if (from.IsAttack)
             {
                 AttackKind k = from.Kind;
-                if (k == AttackKind.RunLight || k == AttackKind.RollAttack || k == AttackKind.BackstepAttack || k == AttackKind.CrouchAttack)
+                if (k == AttackKind.RunLight || k == AttackKind.RollAttack || k == AttackKind.BackstepAttack || k == AttackKind.CrouchAttack
+                    || k == AttackKind.RunHeavy || k == AttackKind.Heavy1 || k == AttackKind.Heavy1Charge || k == AttackKind.GuardCounter)
                 {
                     return Pick(AttackKind.Light2, AttackKind.Light1);
+                }
+                // A feint goes on as a backstep's attack.
+                if (k == AttackKind.Feint1 || k == AttackKind.Feint2)
+                {
+                    return Pick(AttackKind.BackstepAttack, AttackKind.Light1);
                 }
                 if (JumpAttackChains && (k == AttackKind.JumpLightLand || k == AttackKind.JumpLightLandShort))
                 {
@@ -1378,10 +1390,16 @@ namespace Eldenheim.Sim
         private static AttackKind? NextInChain(AttackKind k, AttackKind first, AttackKind last) =>
             k >= first && k < last ? k + 1 : (AttackKind?)null;
 
-        private ActionId? NextLeft(ActionId from)
+        private ActionId? NextLeft(ActionId from, float f)
         {
             AttackKind paired, single;
-            if (from.IsAttack && JumpAttackChains && (from.Kind == AttackKind.PairedJumpLand || from.Kind == AttackKind.PairedJumpLandShort))
+            int swing = from.Def().LightAt(f);
+            if (swing != 0)
+            {
+                paired = (AttackKind)((int)AttackKind.PairedLight1 + swing - 1);
+                single = AttackKind.LeftLight1;
+            }
+            else if (from.IsAttack && JumpAttackChains && (from.Kind == AttackKind.PairedJumpLand || from.Kind == AttackKind.PairedJumpLandShort))
             {
                 paired = AttackKind.PairedLight2;
                 single = AttackKind.LeftLight1;
@@ -1414,13 +1432,13 @@ namespace Eldenheim.Sim
             return PickLeft(new[] { paired, AttackKind.PairedLight1 }, new[] { single, AttackKind.LeftLight1 });
         }
 
-        private ActionId? NextHeavy(ActionId from)
+        private ActionId? NextHeavy(ActionId from, float f)
         {
             if (GuardCounterReady())
             {
                 return Pick(AttackKind.GuardCounter, AttackKind.Heavy1Charge);
             }
-            if (from.IsAttack && (from.Kind == AttackKind.Heavy1 || from.Kind == AttackKind.Heavy1Charge))
+            if (from.Def().Heavy2At(f) || from.IsAttack && (from.Kind == AttackKind.Heavy1 || from.Kind == AttackKind.Heavy1Charge))
             {
                 return Pick(AttackKind.Heavy2Charge, AttackKind.Heavy1Charge);
             }

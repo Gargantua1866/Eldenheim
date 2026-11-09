@@ -111,6 +111,11 @@ impl Out {
         self.speed(d.speed);
         self.f32(d.guard.0);
         self.f32(d.guard.1);
+        self.f32(d.chain_light.0);
+        self.f32(d.chain_light.1);
+        self.u8(d.chain_light.2);
+        self.f32(d.chain_heavy.0);
+        self.f32(d.chain_heavy.1);
     }
     fn speed(&mut self, windows: &[(f32, f32, f32, f32)]) {
         self.u32(windows.len() as u32);
@@ -205,7 +210,8 @@ fn export_data(path: &str) {
     // 2: speed windows (TAE 608) after each action's motion and air attack's blade.
     // 3: each hit ends with a byte, its throw (0 none, 1 right hand, 2 left).
     // 4: so does each air attack; each action ends with its guard window.
-    o.u32(4);
+    // 5: then its next-attack windows (light: from, to, swing; heavy: from, to).
+    o.u32(5);
     for v in [
         extracted::WALK_SPEED, extracted::RUN_SPEED, extracted::RUN_BACK_SPEED, extracted::RUN_SIDE_SPEED,
         extracted::SPRINT_SPEED, extracted::CROUCH_WALK_SPEED, extracted::CROUCH_RUN_SPEED, extracted::MAX_HP,

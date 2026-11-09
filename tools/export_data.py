@@ -181,6 +181,11 @@ class Out:
         self.floats(d["speed"])
         self.f32(d["guard"][0])
         self.f32(d["guard"][1])
+        self.f32(d["chain_light"][0])
+        self.f32(d["chain_light"][1])
+        self.u8(d["chain_light"][2])
+        self.f32(d["chain_heavy"][0])
+        self.f32(d["chain_heavy"][1])
 
     def air(self, d):
         self.f32(d["from"])
@@ -214,7 +219,7 @@ def all_base():
 def export(text):
     o = Out()
     o.b += b"EHDT"
-    o.u32(4)  # 4: throws (a byte per hit and air attack) and guard windows (see simtrace)
+    o.u32(5)  # 5: next-attack windows after the guard window (see simtrace)
     for name in ("WALK_SPEED", "RUN_SPEED", "RUN_BACK_SPEED", "RUN_SIDE_SPEED", "SPRINT_SPEED", "CROUCH_WALK_SPEED",
                  "CROUCH_RUN_SPEED", "MAX_HP", "MAX_STAMINA"):
         o.f32(float(const(text, name)))

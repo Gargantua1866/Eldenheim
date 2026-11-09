@@ -454,9 +454,24 @@ pub struct ActionDef {
     /// Frames the character guards through the attack (the Carian Knight's
     /// Sword's charging heavies); (0, 0) is none.
     pub guard: (f32, f32),
+    /// While on, a light press goes to this swing of the chain (2-4) instead
+    /// of the usual next one (the game's next-attack effects); 0 is none.
+    pub chain_light: (f32, f32, u8),
+    /// While on, a heavy press goes to the second heavy.
+    pub chain_heavy: (f32, f32),
 }
 
 impl ActionDef {
+    /// The swing of the chain (2-4) a light press goes to at this frame, if the attack says.
+    pub fn light_at(&self, frame: f32) -> Option<u8> {
+        let (from, to, swing) = self.chain_light;
+        (swing != 0 && frame >= from && frame < to).then_some(swing)
+    }
+
+    pub fn heavy2_at(&self, frame: f32) -> bool {
+        frame >= self.chain_heavy.0 && frame < self.chain_heavy.1
+    }
+
     pub fn speed_at(&self, frame: f32) -> f32 {
         speed_at(self.speed, frame)
     }

@@ -756,9 +756,9 @@ impl Player {
                             self.start_jump(inp, target);
                             return false;
                         }
-                        Req::Light => self.next_light(a.id),
-                        Req::Heavy => self.next_heavy(a.id),
-                        Req::Left => self.next_left(a.id),
+                        Req::Light => self.next_light(a.id, a.f),
+                        Req::Heavy => self.next_heavy(a.id, a.f),
+                        Req::Left => self.next_left(a.id, a.f),
                     };
                     if let Some(next) = next {
                         self.start(next);
@@ -1013,12 +1013,20 @@ impl Player {
         self.start(ActionId::Jump(kind));
     }
 
-    fn next_light(&self, from: ActionId) -> Option<ActionId> {
+    fn next_light(&self, from: ActionId, f: f32) -> Option<ActionId> {
         use AttackKind::*;
+        // The attack's own say first (Milady's chains).
+        if let Some(swing) = from.def().light_at(f) {
+            return self.pick(&[[Light2, Light3, Light4][swing as usize - 2], Light1]);
+        }
         match from {
             // The game's script sends a light press after any of these openers
             // into the *second* swing of the chain, not the first.
-            ActionId::Attack(_, RunLight | RollAttack | BackstepAttack | CrouchAttack) => self.pick(&[Light2, Light1]),
+            ActionId::Attack(_, RunLight | RollAttack | BackstepAttack | CrouchAttack | RunHeavy | Heavy1 | Heavy1Charge | GuardCounter) => {
+                self.pick(&[Light2, Light1])
+            }
+            // A feint goes on as a backstep's attack.
+            ActionId::Attack(_, Feint1 | Feint2) => self.pick(&[BackstepAttack, Light1]),
             ActionId::Attack(_, kind) => {
                 let next = kind.next_light().unwrap_or(Light1);
                 // Chains differ in length per weapon; past the end they start over.
@@ -1031,9 +1039,12 @@ impl Player {
         }
     }
 
-    fn next_left(&self, from: ActionId) -> Option<ActionId> {
+    fn next_left(&self, from: ActionId, f: f32) -> Option<ActionId> {
         use AttackKind::*;
         let (paired, single) = match from {
+            _ if from.def().light_at(f).is_some() => {
+                ([PairedLight2, PairedLight3, PairedLight4][from.def().light_at(f).unwrap() as usize - 2], LeftLight1)
+            }
             ActionId::Attack(_, kind) => (kind.next_paired().unwrap_or(PairedLight1), kind.next_left().unwrap_or(LeftLight1)),
             ActionId::Roll(..) | ActionId::CrouchRoll(..) => (PairedRoll, LeftLight1),
             ActionId::Backstep => (PairedBackstep, LeftLight1),
@@ -1044,10 +1055,11 @@ impl Player {
         self.pick_left(&[paired, PairedLight1], &[single, LeftLight1])
     }
 
-    fn next_heavy(&self, from: ActionId) -> Option<ActionId> {
+    fn next_heavy(&self, from: ActionId, f: f32) -> Option<ActionId> {
         use AttackKind::*;
         match from {
             _ if self.guard_counter_ready() => self.pick(&[GuardCounter, Heavy1Charge]),
+            _ if from.def().heavy2_at(f) => self.pick(&[Heavy2Charge, Heavy1Charge]),
             ActionId::Attack(_, Heavy1 | Heavy1Charge) => self.pick(&[Heavy2Charge, Heavy1Charge]),
             ActionId::SprintStop => self.pick(&[RunHeavy, Heavy1Charge]),
             _ => self.pick(&[Heavy1Charge, Heavy1]),

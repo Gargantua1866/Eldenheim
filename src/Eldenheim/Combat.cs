@@ -208,9 +208,6 @@ namespace Eldenheim
             Slam(vp, p, weapon, hit, at, hit.Stop * Consts.HIT_STOP_SCALE, log);
         }
 
-        /// <summary>Where a throw aims (the lock-on target), or null: the camera's way.</summary>
-        public static Vector3? AimAt;
-
         /// <summary>A thrown hit's damage and poise scales, taken as it leaves the hand (the attack may be over when it lands).</summary>
         public sealed class Thrown
         {
@@ -283,44 +280,16 @@ namespace Eldenheim
             return (right, left);
         }
 
+        /// <summary>How far above level a throw leaves, as a slope: every throw flies the same arc from the way the body faces.</summary>
+        private const float ThrowLift = 0.08f;
+
         /// <summary>Thrown from the middle of the body, at chest height, a little ahead.</summary>
-        private static Vector3 ThrowOrigin(VPlayer vp, Vector3 toward)
+        private static Vector3 ThrowOrigin(VPlayer vp)
         {
             Vector3 chest = vp.transform.position + Vector3.up * 1.3f;
-            toward.y = 0f;
-            Vector3 from = chest + (toward.sqrMagnitude > 1e-4f ? toward.normalized : vp.transform.forward) * 0.5f;
+            Vector3 from = chest + vp.transform.forward * 0.5f;
             return Physics.Linecast(chest, from, GroundMask, QueryTriggerInteraction.Ignore) ? chest : from;
         }
-
-        /// <summary>What the crosshair is on: along the camera from the player onward, the player itself aside.</summary>
-        private static bool CrosshairPoint(VPlayer vp, out Vector3 point)
-        {
-            Transform cam = GameCamera.instance != null ? GameCamera.instance.transform : null;
-            if (cam == null)
-            {
-                point = vp.transform.position + vp.transform.forward * 100f;
-                return false;
-            }
-            Vector3 forward = cam.forward;
-            Vector3 start = cam.position + forward * Mathf.Max(0f, Vector3.Dot(vp.transform.position - cam.position, forward));
-            float nearest = float.MaxValue;
-            bool found = false;
-            point = start + forward * 200f;
-            int n = Physics.RaycastNonAlloc(start, forward, _aimHits, 200f, AttackMask, QueryTriggerInteraction.Ignore);
-            for (int i = 0; i < n; i++)
-            {
-                RaycastHit h = _aimHits[i];
-                if (h.distance < nearest && h.collider != null && !h.collider.transform.IsChildOf(vp.transform))
-                {
-                    nearest = h.distance;
-                    point = h.point;
-                    found = true;
-                }
-            }
-            return found;
-        }
-
-        private static readonly RaycastHit[] _aimHits = new RaycastHit[32];
 
         /// <summary>The projectile ZDO's spin: 1 end over end (an axe), 2 flat (a hammer), 0 none.</summary>
         public const string ThrownSpin = "eldenheim.thrownspin";
@@ -346,21 +315,8 @@ namespace Eldenheim
             {
                 return false;
             }
-            // At the lock-on target, or whatever the crosshair is on.
-            bool onTarget = CrosshairPoint(vp, out Vector3 aim);
-            if (AimAt.HasValue)
-            {
-                aim = AimAt.Value;
-                onTarget = true;
-            }
-            Vector3 from = ThrowOrigin(vp, aim - vp.transform.position);
-            Vector3 dir = (aim - from).normalized;
-            if (Vector3.Dot(dir, vp.transform.forward) < -0.3f)
-            {
-                // Not behind the thrower: along the facing, aimed a little up.
-                dir = (vp.transform.forward + Vector3.up * 0.08f).normalized;
-                onTarget = false;
-            }
+            Vector3 from = ThrowOrigin(vp);
+            Vector3 dir = (vp.transform.forward + Vector3.up * ThrowLift).normalized;
             GameObject go = Object.Instantiate(throwing.m_attackProjectile, from, Quaternion.LookRotation(dir));
             if (borrowed && weapon.m_dropPrefab != null)
             {
@@ -400,11 +356,6 @@ namespace Eldenheim
             bool consume = Settings.ThrowSpears.Value && throwing.m_consumeItem && !IsHarpoon(weapon) && !borrowed;
             Projectile projectile = go.GetComponent<Projectile>();
             Vector3 velocity = dir * throwing.m_projectileVel;
-            if (onTarget && projectile != null && throwing.m_projectileVel > 0f)
-            {
-                // Lift it by what it falls on the way, so it arrives where it was aimed.
-                velocity.y += 0.5f * projectile.m_gravity * Mathf.Min(Vector3.Distance(aim, from) / throwing.m_projectileVel, 2f);
-            }
             go.GetComponent<IProjectile>()?.Setup(vp, velocity, throwing.m_attackHitNoise, data, consume ? weapon : null, null);
             if (Slams(weapon) && projectile != null)
             {
@@ -747,7 +698,8 @@ namespace Eldenheim
                 int spin = nview.GetZDO().GetInt(ThrownSpin);
                 if (spin != 0)
                 {
-                    shown.localRotation = Quaternion.AngleAxis(Time.time * (spin == 1 ? 900f : 720f), spin == 1 ? Vector3.right : Vector3.up);
+                    // The axe head over forwards; the hammer counterclockwise seen from above.
+                    shown.localRotation = Quaternion.AngleAxis(Time.time * (spin == 1 ? 900f : -720f), spin == 1 ? Vector3.right : Vector3.up);
                 }
                 return;
             }
@@ -785,6 +737,25 @@ namespace Eldenheim
             Vector3 z = model.transform.InverseTransformPoint(longest.transform.TransformPoint(b.center - axis * 0.5f));
             Vector3 tip = a.sqrMagnitude >= z.sqrMagnitude ? a - z : z - a;
             model.transform.localRotation = Quaternion.FromToRotation(tip, Vector3.forward);
+            if (nview.GetZDO().GetInt(ThrownSpin) == 1)
+            {
+                // An axe tumbles in its blade's plane, edge leading: the head's second-longest
+                // axis, on the side the mesh's middle sits from the haft (the grip, at the origin).
+                Vector3 across = axis.x != 0f ? (e.y >= e.z ? new Vector3(0f, e.y, 0f) : new Vector3(0f, 0f, e.z))
+                    : axis.y != 0f ? (e.x >= e.z ? new Vector3(e.x, 0f, 0f) : new Vector3(0f, 0f, e.z))
+                    : e.x >= e.y ? new Vector3(e.x, 0f, 0f) : new Vector3(0f, e.y, 0f);
+                Vector3 edge = Vector3.ProjectOnPlane(model.transform.InverseTransformPoint(longest.transform.TransformPoint(b.center + across * 0.5f))
+                    - model.transform.InverseTransformPoint(longest.transform.TransformPoint(b.center - across * 0.5f)), tip);
+                if (Vector3.Dot(edge, (a + z) * 0.5f) < 0f)
+                {
+                    edge = -edge;
+                }
+                if (edge.sqrMagnitude > 1e-6f)
+                {
+                    // Head forward, edge down: a quarter turn earlier the head is up and the edge leads.
+                    model.transform.localRotation = Quaternion.Inverse(Quaternion.LookRotation(tip, -edge));
+                }
+            }
             if (nview.GetZDO().GetInt(ThrownSpin) != 0)
             {
                 // A spinning item turns about its middle, not its grip.

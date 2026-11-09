@@ -365,6 +365,8 @@ namespace Eldenheim.Anim
 
         private const float TORSO_WIDE = 0.22f, TORSO_FRONT = 0.22f, TORSO_BACK = 0.15f;
         private const float HAND_REACH = 0.1f, HAND_PAD = 0.035f;
+        /// <summary>Over this far above the neck the oval closes to nothing: there is no torso up there.</summary>
+        private const float TORSO_CLOSE = 0.15f;
         private const float TORSO_DEEP = (TORSO_FRONT + TORSO_BACK) / 2f, TORSO_SHIFT = (TORSO_FRONT - TORSO_BACK) / 2f;
         private int[][] _arms;
         private Transform _spineLow, _neck, _chestBone;
@@ -465,16 +467,25 @@ namespace Eldenheim.Anim
             Vector3 axis = high - low;
             float t = axis.sqrMagnitude > 1e-8f ? Mathf.Clamp01(Vector3.Dot(p - low, axis) / axis.sqrMagnitude) : 0f;
             Vector3 centre = low + axis * t;
+            // Hands raised overhead, even both on one handle above the head, are not in the torso.
+            float over = axis.sqrMagnitude > 1e-8f ? Vector3.Dot(p - high, axis.normalized) : 0f;
+            float close = Mathf.Clamp01(1f - over / TORSO_CLOSE);
+            if (close <= 0f)
+            {
+                surface = p;
+                return 0f;
+            }
             // The oval's middle sits in front of the spine (chest +z is forward).
-            Vector3 v = Quaternion.Inverse(chest) * (p - centre) - new Vector3(0f, 0f, TORSO_SHIFT);
+            float shift = TORSO_SHIFT * close;
+            Vector3 v = Quaternion.Inverse(chest) * (p - centre) - new Vector3(0f, 0f, shift);
             float along = v.y;
             v.y = 0f;
             // Straight through the middle: out the front.
             Vector3 dir = v.sqrMagnitude > 1e-8f ? v : Vector3.forward * 1e-3f;
-            float wide = TORSO_WIDE + pad, deep = TORSO_DEEP + pad;
+            float wide = (TORSO_WIDE + pad) * close, deep = (TORSO_DEEP + pad) * close;
             float q = Mathf.Sqrt(dir.x * dir.x / (wide * wide) + dir.z * dir.z / (deep * deep));
             Vector3 onSurface = dir / q;
-            surface = centre + chest * new Vector3(onSurface.x, along, onSurface.z + TORSO_SHIFT);
+            surface = centre + chest * new Vector3(onSurface.x, along, onSurface.z + shift);
             return q < 1f ? (onSurface - v).magnitude : 0f;
         }
 

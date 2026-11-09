@@ -174,6 +174,55 @@ def despike(poses, bones):
     return changed
 
 
+def arm_chains(names, parents):
+    """Each arm's bones, hand to clavicle. Its twist bones, if any, come along."""
+    chains = []
+    for side in ("L_", "R_"):
+        chain, bone = [], names.index(side + "Hand")
+        while True:
+            chain.append(bone)
+            if names[bone] == side + "Clavicle":
+                break
+            bone = parents[bone]
+        chains.append(chain)
+    return chains
+
+
+def despike_arms(poses, chains):
+    """Smooths single frames where a hand jumps away and straight back (over
+    10 cm, landing back within 60% of that) though no one bone snaps far: the
+    bones compensate for each other, so the whole arm is smoothed together.
+    Returns how many frames it changed."""
+
+    def reach(local, chain):
+        at = (0.0, 0.0, 0.0)
+        for bone in chain:
+            p, q = local[bone]
+            r = qrot(q, at)
+            at = (p[0] + r[0], p[1] + r[1], p[2] + r[2])
+        return at
+
+    def apart(a, b):
+        return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+
+    changed = 0
+    for chain in chains:
+        for i in range(1, len(poses) - 1):
+            before, now, after = poses[i - 1], poses[i], poses[i + 1]
+            a, b, c = reach(before, chain), reach(now, chain), reach(after, chain)
+            least = min(apart(a, b), apart(b, c))
+            if least <= 0.10 or apart(a, c) >= 0.6 * least:
+                continue
+            for bone in chain:
+                q0, q2 = before[bone][1], after[bone][1]
+                sign = 1.0 if sum(x * y for x, y in zip(q0, q2)) >= 0.0 else -1.0
+                mid = [x + sign * y for x, y in zip(q0, q2)]
+                n = sum(v * v for v in mid) ** 0.5
+                now[bone] = (now[bone][0], tuple(v / n for v in mid))
+            changed += 1
+    return changed
+
+
 def main_lean(out):
     names_wanted = sandbox_clip_names()
     src = Source()
@@ -186,6 +235,7 @@ def main_lean(out):
                 hkx.setdefault(PureWindowsPath(n).stem, d)
     src.hkx = hkx
 
+    chains = arm_chains(names, parents)
     lean = [b for b in LEAN if b in names]
     index = [names.index(b) for b in lean]
     positioned = [lean.index(b) for b in POSITIONED]
@@ -221,7 +271,7 @@ def main_lean(out):
             f.write(struct.pack("<7f", px, py, pz, qx, qy, qz, qw))
         f.write(struct.pack("<I", len(positioned)) + struct.pack("<%dH" % len(positioned), *positioned))
         frames_total = 0
-        spikes = 0
+        spikes = hand_spikes = 0
         missing = []
         for name in names_wanted:
             file, anim_id = "a%02d" % int(name[1:4]), int(name[5:])
@@ -244,6 +294,7 @@ def main_lean(out):
                     local[bone] = transform
                 poses.append(local)
             spikes += despike(poses, needed)
+            hand_spikes += despike_arms(poses, chains)
             for local in poses:
                 p = pose(local)
                 f.write(struct.pack("<%dh" % (4 * len(p)), *[q16(c) for _, q in p for c in q]))
@@ -251,7 +302,7 @@ def main_lean(out):
                     f.write(struct.pack("<3f", *p[i][0]))
             frames_total += count
         print("wrote", out, out.stat().st_size, "bytes,", len(names_wanted), "clips,", frames_total, "frames,", len(lean), "bones;",
-              spikes, "one-frame spikes smoothed; missing", missing)
+              spikes, "one-frame bone spikes and", hand_spikes, "hand spikes smoothed; missing", missing)
 
 
 if __name__ == "__main__":
