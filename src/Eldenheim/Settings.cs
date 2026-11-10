@@ -38,6 +38,7 @@ namespace Eldenheim
 
         public static ConfigEntry<bool> ValheimIframes;
         public static ConfigEntry<bool> RemoveBlockForce;
+        public static ConfigEntry<float> WeaponKnockbackScale;
         public static ConfigEntry<bool> ParrySound;
         public static ConfigEntry<int> ParryVolume;
         public static ConfigEntry<bool> IframeDebug;
@@ -274,23 +275,30 @@ namespace Eldenheim
                 "Off (Elden Ring's Smithscript Spear): the spear heavy throws a spear and the one in your hand stays. " +
                 "On (Valheim): the spear itself flies, leaves your inventory and lands where it hits, to be picked up.", weapons);
 
-            DamageScale = Bind(c, COMBAT, "DamageScale", 1f, "Multiplies the damage of every Eldenheim swing (1 = the weapon's own damage on a first light attack).", balance);
-            PoiseScale = Bind(c, COMBAT, "StaggerScale", 1f, "Multiplies how much each swing staggers.", balance);
-            KnockdownPercent = Bind(c, COMBAT, "KnockdownPercent", 50,
-                new ConfigDescription("A single hit taking at least this percent of maximum health (after armour) knocks the player down, as Elden Ring's " +
-                                      "knockdown; smaller hits don't stagger.", new AcceptableValueRange<int>(0, 100)), balance);
+            // Listed in this order (as F1 sorted them by name), WeaponKnockbackScale under RemoveBlockForce.
+            int combat = 100;
+            ConfigDescription Combat(string text, AcceptableValueBase range = null) =>
+                new ConfigDescription(text, range, new ConfigurationManagerAttributes { Order = combat-- });
+            DamageScale = Bind(c, COMBAT, "DamageScale", 1f, Combat("Multiplies the damage of every Eldenheim swing (1 = the weapon's own damage on a first light attack)."), balance);
             GuardBlowPercent = Bind(c, COMBAT, "GuardBlowPercent", 85,
-                new ConfigDescription("A blocked blow that alone fills at least this percent of Valheim's block meter, without filling it, throws the " +
-                                      "player back in Elden Ring's back roll. A full meter is a guard break instead, so 100 = never.",
+                Combat("A blocked blow that alone fills at least this percent of Valheim's block meter, without filling it, throws the " +
+                       "player back in Elden Ring's back roll. A full meter is a guard break instead, so 100 = never.",
                     new AcceptableValueRange<int>(0, 100)), balance);
-            ValheimIframes = Bind(c, COMBAT, "ValheimIframes", false,
-                "Off (Elden Ring): rolls are invincible for frames 0-13 at 30 per second (0.43 s; 0-12 when heavily loaded), the backstep for " +
-                "0-7 (0.23 s). On (Valheim): every roll and backstep is invincible from its start for as long as Valheim's own dodge is (up to its " +
-                "dodge clip's DodgeMortal event, read from the game; the log line \"Valheim's dodge\" gives it).");
-            RemoveBlockForce = Bind(c, COMBAT, "RemoveBlockForce", true,
-                "On (Elden Ring): blocking a melee blow doesn't push the attacker back. Off (Valheim): the guarding item's Block Force shoves it away.");
             HitStop = Bind(c, COMBAT, "HitStop", false,
-                "Elden Ring's hit-stop: the attacker's swing and the target freeze for a moment when a hit lands. Off: swings carry straight through.", visuals);
+                Combat("Elden Ring's hit-stop: the attacker's swing and the target freeze for a moment when a hit lands. Off: swings carry straight through."), visuals);
+            KnockdownPercent = Bind(c, COMBAT, "KnockdownPercent", 50,
+                Combat("A single hit taking at least this percent of maximum health (after armour) knocks the player down, as Elden Ring's " +
+                       "knockdown; smaller hits don't stagger.", new AcceptableValueRange<int>(0, 100)), balance);
+            RemoveBlockForce = Bind(c, COMBAT, "RemoveBlockForce", true,
+                Combat("On (Elden Ring): blocking a melee blow doesn't push the attacker back. Off (Valheim): the guarding item's Block Force shoves it away."));
+            WeaponKnockbackScale = Bind(c, COMBAT, "WeaponKnockbackScale", 1f,
+                Combat("Multiplies how far Eldenheim's hits push what they strike (Valheim's weapon knockback, its Attack Force). 1 = Valheim's; " +
+                       "lower it for weapons such as maces that shove enemies far away, 0 = no push.", new AcceptableValueRange<float>(0f, 2f)));
+            PoiseScale = Bind(c, COMBAT, "StaggerScale", 1f, Combat("Multiplies how much each swing staggers."), balance);
+            ValheimIframes = Bind(c, COMBAT, "ValheimIframes", false,
+                Combat("Off (Elden Ring): rolls are invincible for frames 0-13 at 30 per second (0.43 s; 0-12 when heavily loaded), the backstep for " +
+                       "0-7 (0.23 s). On (Valheim): every roll and backstep is invincible from its start for as long as Valheim's own dodge is (up to its " +
+                       "dodge clip's DodgeMortal event, read from the game; the log line \"Valheim's dodge\" gives it)."));
 
             NegativeStamina = Bind(c, STAMINA, "NegativeStamina", true,
                 "On (Elden Ring): any attack can start while there is stamina left, whatever it costs. One that runs the bar dry leaves it " +

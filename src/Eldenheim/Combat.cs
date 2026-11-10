@@ -366,7 +366,7 @@ namespace Eldenheim
             var data = new HitData
             {
                 m_toolTier = (short)weapon.m_shared.m_toolTier,
-                m_pushForce = weapon.m_shared.m_attackForce * throwing.m_forceMultiplier * factor,
+                m_pushForce = weapon.m_shared.m_attackForce * throwing.m_forceMultiplier * factor * Settings.WeaponKnockbackScale.Value,
                 m_backstabBonus = weapon.m_shared.m_backstabBonus,
                 m_staggerMultiplier = throwing.m_staggerMultiplier * GuardScale(p, hit) * Settings.PoiseScale.Value,
                 m_skillLevel = vp.GetSkillLevel(weapon.m_shared.m_skillType),
@@ -681,7 +681,7 @@ namespace Eldenheim
                 m_skillLevel = vp.GetSkillLevel(skill),
                 m_itemLevel = (short)weapon.m_quality,
                 m_itemWorldLevel = (byte)weapon.m_worldLevel,
-                m_pushForce = weapon.m_shared.m_attackForce * factor * (attack?.m_forceMultiplier ?? 1f),
+                m_pushForce = weapon.m_shared.m_attackForce * factor * (attack?.m_forceMultiplier ?? 1f) * Settings.WeaponKnockbackScale.Value,
                 m_backstabBonus = weapon.m_shared.m_backstabBonus,
                 m_staggerMultiplier = (attack?.m_staggerMultiplier ?? 1f) * (thrown?.Guard ?? GuardScale(p, hit)) * Settings.PoiseScale.Value,
                 m_dodgeable = weapon.m_shared.m_dodgeable,
