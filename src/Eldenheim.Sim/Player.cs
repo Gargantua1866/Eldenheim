@@ -232,6 +232,10 @@ namespace Eldenheim.Sim
         /// swing is over), instead of ending in a plain fall.
         /// </summary>
         public bool ResumeAirAttacks;
+        /// <summary>Eldenheim: an air attack can start in any fall, not only a jump's.</summary>
+        public bool FallAttacks;
+        /// <summary>How high above the ground a fall has to be for FallAttacks (m). ESTIMATE.</summary>
+        public const float FALL_ATTACK_HEIGHT = 1f;
         /// <summary>
         /// Eldenheim: Elden Ring's free aim, unlocked: how far (radians, up positive)
         /// the attack's blade path is tilted about the hips, as the drawn upper body is.
@@ -517,6 +521,49 @@ namespace Eldenheim.Sim
                 }
             }
             return mask;
+        }
+
+        /// <summary>
+        /// Eldenheim: the first of an air attack's landing hits that come after its air swing
+        /// (a multi-hit jump attack's later blows), or -1; full is that landing.
+        /// </summary>
+        public static int LaterBlow(AirAttack at, out ActionDef full)
+        {
+            full = at.Moveset.Attack(LandingOf(at));
+            if (full == null || at.Def == null)
+            {
+                return -1;
+            }
+            for (int i = 0; i < full.Hits.Length; i++)
+            {
+                if (full.Hits[i].From >= at.Def.To - 0.5f)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>Eldenheim: the air attack's later blow i (a landing hit, LaterBlow) while its window is open at the air frame, swept along the landing's own blade.</summary>
+        public ActiveHit AirBlowHit(int i)
+        {
+            if (!(AirAttackState is AirAttack at))
+            {
+                return null;
+            }
+            int after = LaterBlow(at, out ActionDef full);
+            if (after < 0 || i < after || i >= full.Hits.Length)
+            {
+                return null;
+            }
+            Hit h = full.Hits[i];
+            float step = Consts.DF * at.Def.SpeedAt(at.F);
+            if (at.F < h.From || at.F - step >= h.To)
+            {
+                return null;
+            }
+            var result = new ActiveHit { Attack = at.Moveset.Info.Attack, Mv = h.Mv, GuardDamage = h.GuardDamage, Stop = h.Stop, Radius = h.Radius };
+            return Sweep(h.Blade, h.From, F.Min(at.F, h.To), step, result) ? result : null;
         }
 
         /// <summary>A jump attack's landing (it carries on the air swing).</summary>
@@ -1121,9 +1168,10 @@ namespace Eldenheim.Sim
             level.Slide(ref Pos, new Vec3(a.Vel.X, 0f, a.Vel.Z) * Consts.DT);
             Pos.Y += a.Vel.Y * Consts.DT;
             _peak = F.Max(_peak, Pos.Y);
-            TryAirAttack(a.Jumped);
-
             float ground = level.Height(Pos.X, Pos.Z);
+            // Eldenheim (FallAttacks): falling off a ledge without a jump, an air attack starts too
+            // (once clear of the ground: a step down is no fall to attack from).
+            TryAirAttack(a.Jumped || FallAttacks && !a.Thrown && Pos.Y - ground > FALL_ATTACK_HEIGHT);
             if (a.Vel.Y > 0f || Pos.Y > ground)
             {
                 State = StateKind.Air;
@@ -1232,20 +1280,14 @@ namespace Eldenheim.Sim
                 }
                 ActionDef full = at.Moveset.Attack(landing);
                 bool finished = at.F >= at.Def.To;
-                // Eldenheim: the landing's hits after the air swing (Milady's second jump-heavy blow,
-                // the power stance's second chop) are never swept in the air: they strike on landing.
-                int after = -1;
-                if (LandInPlace && full != null)
+                // Eldenheim: the landing's blows after the air swing (Milady's second jump-heavy
+                // blow, the power stance's second chop) strike in the air as their frames come
+                // (AirBlowHit): the landing is finished only once they are past too.
+                int after = LandInPlace ? LaterBlow(at, out _) : -1;
+                if (after >= 0)
                 {
-                    for (int i = 0; i < full.Hits.Length && after < 0; i++)
-                    {
-                        if (full.Hits[i].From >= at.Def.To - 0.5f)
-                        {
-                            after = i;
-                        }
-                    }
+                    finished &= at.F >= full.Hits[full.Hits.Length - 1].To;
                 }
-                finished &= after < 0;
                 AttackKind kind = finished && at.Moveset.Has(shortKind) ? shortKind : landing;
                 ActionDef def = at.Moveset.Attack(kind);
                 if (def == null)
@@ -1263,15 +1305,15 @@ namespace Eldenheim.Sim
                     // Eldenheim: an air swing that outlasts the landing's own strike (Milady's
                     // spinning jump heavy, 17-40, lands in a slam at 20-23) is a different blow:
                     // landing in place past it skipped the slam, so the landing starts at it.
-                    if (after >= 0)
+                    if (after >= 0 && !finished)
                     {
-                        // Landing after that blow's start (a long fall): back to it, the air swing's hits done.
-                        Hit next = def.Hits[after];
-                        if (at.F > next.From)
+                        // The later blows the air already swept to their end don't strike again.
+                        for (int i = after; i < def.Hits.Length && i < 32; i++)
                         {
-                            Act.F = next.From;
-                            Act.Landed = after >= 32 ? uint.MaxValue : (1u << after) - 1u;
-                            Act.NewStrike = true;
+                            if (def.Hits[i].To <= at.F)
+                            {
+                                Act.Landed |= 1u << i;
+                            }
                         }
                     }
                     else if (LandInPlace && !finished && first != null && at.Def.To > first.To + 2f && at.F >= first.From)

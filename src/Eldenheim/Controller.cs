@@ -482,6 +482,7 @@ namespace Eldenheim
             LandFollowUps = true,
             LandInPlace = true,
             ResumeAirAttacks = true,
+            FallAttacks = true,
             ReverseBackstepFrames = 4f,
             BackstepAttackTurn = 1800f,
         };
@@ -2011,6 +2012,7 @@ namespace Eldenheim
             ActionId wasAct = Sim.Act.Id;
             float wasF = Sim.Act.F;
             bool wasAir = Sim.AirAttackState.HasValue;
+            _wasAirF = Sim.AirAttackState?.F ?? -1f;
             _level.NoSlide = Sim.Sprinting;
             Vec3 before = Sim.Pos;
             Sim.Step(inp, _level, target, InCombat());
@@ -2493,12 +2495,26 @@ namespace Eldenheim
         }
 
         /// <summary>Charges the hits whose windows opened this tick (frames after fromF), and an air attack that began.</summary>
+        private float _wasAirF;
+
         private void ChargeAttacks(float fromF, bool wasAir)
         {
             if (Sim.AirAttackState is AirAttack air && !wasAir && !air.Resumed)
             {
                 ItemDrop.ItemData item = (Sim.Grip == Grip.TwoHandLeft ? Left : Right) ?? Unarmed;
                 UseAttack($"jump attack ({item?.m_shared.m_name})", AttackCost(air.Moveset, item, air.Def.Stamina));
+            }
+            // A multi-hit jump attack's later blows are paid as they come in the air (the landing then skips them).
+            if (Sim.AirAttackState is AirAttack still && wasAir && SimPlayer.LaterBlow(still, out ActionDef later) is int after && after >= 0)
+            {
+                for (int i = after; i < later.Hits.Length; i++)
+                {
+                    if (later.Hits[i].From > _wasAirF && later.Hits[i].From <= still.F)
+                    {
+                        ItemDrop.ItemData item = (Sim.Grip == Grip.TwoHandLeft ? Left : Right) ?? Unarmed;
+                        UseAttack($"jump attack blow {i + 1} ({item?.m_shared.m_name})", AttackCost(still.Moveset, item, later.Hits[i].Stamina));
+                    }
+                }
             }
             if (Sim.State != StateKind.Act || !Sim.Act.Id.IsAttack)
             {

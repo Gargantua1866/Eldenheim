@@ -154,6 +154,16 @@ namespace Eldenheim
             }
             if (p.AirAttackState.HasValue)
             {
+                // A multi-hit jump attack's later blows, as their frames come in the air (keys 20 on).
+                int after = SimPlayer.LaterBlow(p.AirAttackState.Value, out ActionDef later);
+                for (int i = after; after >= 0 && i < later.Hits.Length; i++)
+                {
+                    ActiveHit blow = p.AirBlowHit(i);
+                    if (blow != null)
+                    {
+                        Window(vp, p, blow, 20 + i, hand, right, left, log);
+                    }
+                }
                 ActiveHit air = p.ActiveHitNow();
                 if (air == null)
                 {
@@ -250,7 +260,8 @@ namespace Eldenheim
         {
             if (p.AirAttackState is AirAttack air)
             {
-                return air.Def.Throw != 0;
+                // The air swing's own window (0 in the swings, 15 and 16 in the hits), not its later blows.
+                return (index == 0 || index == 15 || index == 16) && air.Def.Throw != 0;
             }
             Hit[] hits = p.State == StateKind.Act && p.Act.Id.IsAttack ? p.Act.Id.Def().Hits : null;
             return hits != null && index < hits.Length && hits[index].Throw != 0;
@@ -929,8 +940,21 @@ namespace Eldenheim
             }
             else if (!same)
             {
+                bool trailing = _trailUntil >= 0f && _trailSerial == _actSerial;
                 _actSerial++;
-                _lastF = -1f;
+                if (landing && f >= _lastF - 0.5f)
+                {
+                    // Landing in place carries the air swing on: the windows the air already opened
+                    // don't open again (a second trail after the swing) and its trail runs on.
+                    if (trailing)
+                    {
+                        _trailSerial = _actSerial;
+                    }
+                }
+                else
+                {
+                    _lastF = -1f;
+                }
             }
             float from = _lastF;
             _lastAct = act;
@@ -940,9 +964,18 @@ namespace Eldenheim
             float[] opens = null, closes = null;
             if (air)
             {
+                // The air swing, then its landing's later blows at their own indices.
                 AirAttackDef d = p.AirAttackState.Value.Def;
-                opens = new[] { d.From };
-                closes = new[] { d.To };
+                int after = SimPlayer.LaterBlow(p.AirAttackState.Value, out ActionDef later);
+                int n = after >= 0 ? later.Hits.Length : 1;
+                opens = new float[n];
+                closes = new float[n];
+                for (int i = 0; i < n; i++)
+                {
+                    bool blow = after >= 0 && i >= after && i > 0;
+                    opens[i] = i == 0 ? d.From : blow ? later.Hits[i].From : float.MaxValue;
+                    closes[i] = i == 0 ? d.To : blow ? later.Hits[i].To : float.MaxValue;
+                }
             }
             else if (acting && act.IsAttack)
             {
@@ -979,7 +1012,7 @@ namespace Eldenheim
                         Blade by = swing;
                         if (second != null)
                         {
-                            ActiveHit h = air ? p.ActiveHitNow() : p.WindowHit(i);
+                            ActiveHit h = air ? (i == 0 ? p.ActiveHitNow() : p.AirBlowHit(i)) : p.WindowHit(i);
                             by = h != null ? OwnerOf(h, Swinging.Both, swing, second) : swing;
                         }
                         SwingLog = $"swing: {(air ? "air attack" : act.ToString())} at frame {f:0.0}, window {opens[i]:0.#}-{closes[i]:0.#} ({Item(vp, by)?.m_shared.m_name})";
@@ -1373,7 +1406,9 @@ namespace Eldenheim
             {
                 return left;
             }
-            float[][] blade = air ? p.AirAttackState.Value.Def.Blade : act.Def().Hits[window].Blade;
+            float[][] blade = !air ? act.Def().Hits[window].Blade
+                : window == 0 ? p.AirAttackState.Value.Def.Blade
+                : SimPlayer.LaterBlow(p.AirAttackState.Value, out ActionDef later) >= 0 && window < later.Hits.Length ? later.Hits[window].Blade : null;
             if (blade == null || blade.Length == 0)
             {
                 return right;
