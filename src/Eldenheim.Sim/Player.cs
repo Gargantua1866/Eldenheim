@@ -207,6 +207,8 @@ namespace Eldenheim.Sim
         public bool InstantJump;
         /// <summary>Sprint speed and jump height multipliers (the host's skills).</summary>
         public float SprintScale = 1f, JumpScale = 1f;
+        /// <summary>Eldenheim: how high (m) every jump takes the feet, as the host's own jump; sets JumpScale per jump. 0: JumpScale as given.</summary>
+        public float JumpHeight;
         /// <summary>Walking, running and crouched speed multiplier (the host's gear).</summary>
         public float MoveScale = 1f;
         /// <summary>Eldenheim: a held dodge button sprints from the first frame (its separate sprint button).</summary>
@@ -1379,6 +1381,10 @@ namespace Eldenheim.Sim
             _jumpBase = Pos.Y;
             _peak = Pos.Y;
             AirAttackState = null;
+            if (JumpHeight > 0f)
+            {
+                JumpScale = JumpHeight / F.Max(JumpPeak(ActionId.Jump(kind).Def()), 0.1f);
+            }
             Start(ActionId.Jump(kind));
             if (InstantJump && State == StateKind.Act)
             {
@@ -1390,6 +1396,19 @@ namespace Eldenheim.Sim
                 }
                 Act.F = f;
             }
+        }
+
+        /// <summary>How high a jump's clip takes the feet at JumpScale 1: its highest frame, or the climb on after it ends rising.</summary>
+        public static float JumpPeak(ActionDef def)
+        {
+            float most = 0f;
+            for (float f = 0f; f <= def.Total; f += 0.5f)
+            {
+                most = F.Max(most, def.UpAt(f));
+            }
+            int n = def.Motion.Length;
+            float rise = n >= 2 ? (def.Motion[n - 1][1] - def.Motion[n - 2][1]) * Consts.ANIM_FPS : 0f;
+            return rise > 0f ? F.Max(most, def.UpAt(def.Total) + rise * rise / (2f * Consts.GRAVITY)) : most;
         }
 
         private ActionId? NextLight(ActionId from, float f)

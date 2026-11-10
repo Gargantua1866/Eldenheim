@@ -2072,9 +2072,8 @@ namespace Eldenheim
             Sim.MoveScale *= Wading(ErData.RUN_SPEED * Sim.MoveScale);
             var jump = new Vector3(0f, _vp.m_jumpForce * (1f + _vp.GetSkillFactor(Skills.SkillType.Jump) * 0.4f), 0f);
             _vp.GetSEMan().ApplyStatusEffectJumpMods(ref jump);
-            // Valheim scales the take-off speed: the height goes with its square.
-            float up = jump.y / Mathf.Max(_vp.m_jumpForce, 0.01f);
-            Sim.JumpScale = up * up;
+            // As high as Valheim's own jump (Character.Jump, then gravity alone: v² / 2g; 1.8 m at Jump 15).
+            Sim.JumpHeight = jump.y * jump.y / (2f * Mathf.Max(-Physics.gravity.y, 0.1f));
         }
 
         private static readonly AccessTools.FieldRef<Character, Heightmap.Biome> LastBiome = AccessTools.FieldRefAccess<Character, Heightmap.Biome>("m_lastBiome");
@@ -2255,7 +2254,8 @@ namespace Eldenheim
         {
             float movement = GearMovement();
             float skill = 1f + _vp.GetSkillFactor(Skills.SkillType.Run) * 0.25f;
-            float scale = skill * Mathf.Max(1f + movement * 1.5f, 0f);
+            // From Valheim's own run speed (m_runSpeed, 7), not Elden Ring's sprint (6.8): the same speed at the same skill.
+            float scale = _vp.m_runSpeed / Mathf.Max(ErData.SPRINT_SPEED, 0.01f) * skill * Mathf.Max(1f + movement * 1.5f, 0f);
             float run = Mathf.Max(1f + movement, 0.1f);
             return Mathf.Max(scale, ErData.RUN_SPEED * run * 1.1f / Mathf.Max(ErData.SPRINT_SPEED, 0.01f));
         }
