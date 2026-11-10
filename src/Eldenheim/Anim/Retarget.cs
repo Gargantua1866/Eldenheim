@@ -533,6 +533,12 @@ namespace Eldenheim.Anim
         private const float FOOT_SETTLE = 24f;
         /// <summary>How fast the hips' drop follows the lower foot down and back up (per second).</summary>
         private const float SINK_SETTLE = 8f, SINK_RISE = 1.5f;
+        /// <summary>
+        /// How far a foot is lifted onto ground above it (m): the whole reach standing, less on the
+        /// move (Controller), so running down a slope the trailing foot keeps its stride and slides
+        /// a little, as Valheim's do, instead of being hauled up onto the slope behind.
+        /// </summary>
+        public float LiftReach = FOOT_REACH;
         private float _sink;
         private readonly float[] _footLift = new float[2];
         /// <summary>Test harness: the last hips drop and each foot's lift (m).</summary>
@@ -582,7 +588,7 @@ namespace Eldenheim.Anim
                     float? g = ground(foot[s]);
                     // Ground beyond reach: as far as the foot goes, not back to the clip's (a snap
                     // at the limit, every stride on steep slopes).
-                    float wanted = planted && g.HasValue ? Mathf.Clamp(g.Value, -FOOT_REACH, FOOT_REACH) : 0f;
+                    float wanted = planted && g.HasValue ? Mathf.Clamp(g.Value, -FOOT_REACH, LiftReach) : 0f;
                     _footLift[s] += (wanted - _footLift[s]) * (1f - Mathf.Exp(-FOOT_SETTLE * dt));
                 }
             }

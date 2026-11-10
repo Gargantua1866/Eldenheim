@@ -3291,6 +3291,8 @@ namespace Eldenheim
             _rootY = rootY;
             _rootAt = simAt;
             hips.y += _bodyY - bodyY;
+            float flatSpeed = new Vector2(_tickTo.x - _tickFrom.x, _tickTo.z - _tickFrom.z).magnitude / Consts.DT;
+            _retarget.LiftReach = Mathf.Lerp(0.5f, 0.15f, Mathf.InverseLerp(0.5f, 3f, flatSpeed));
             _retarget.PlaceFeet(_local, ref hips, charPoint =>
             {
                 Vector3 world = transform.TransformPoint(charPoint);
