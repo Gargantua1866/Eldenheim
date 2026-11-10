@@ -1783,6 +1783,7 @@ namespace Eldenheim
         internal float HipsY => _bodyY;
         internal float AimShown => _chooser?.AimShown ?? 0f;
         internal string ShownClip => _chooser?.Clip;
+        internal string FeetDebug => _retarget == null ? "" : $"sink {_retarget.LastSink:0.000} feet {_retarget.FootLift[0]:0.000} {_retarget.FootLift[1]:0.000}";
         /// <summary>Test harness: the chest's pitch against the body (degrees, up positive).</summary>
         internal float ChestPitch;
 
@@ -3258,7 +3259,8 @@ namespace Eldenheim
             {
                 Vector3 world = transform.TransformPoint(charPoint);
                 float groundY;
-                if (Physics.Raycast(new Vector3(world.x, _bodyY + 0.6f, world.z), Vector3.down, out RaycastHit hit, 1.4f, PhysicsLevel.GroundMask, QueryTriggerInteraction.Ignore))
+                // From hip height: up a steep slope the ground ahead of the body is higher than 0.6 m.
+                if (Physics.Raycast(new Vector3(world.x, _bodyY + 1f, world.z), Vector3.down, out RaycastHit hit, 1.8f, PhysicsLevel.GroundMask, QueryTriggerInteraction.Ignore))
                 {
                     groundY = hit.point.y;
                 }

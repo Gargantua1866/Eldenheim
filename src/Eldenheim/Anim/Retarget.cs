@@ -531,7 +531,13 @@ namespace Eldenheim.Anim
 
         private const float FOOT_REACH = 0.5f;
         private const float FOOT_SETTLE = 24f;
+        /// <summary>How fast the hips' drop follows the lower foot down and back up (per second).</summary>
+        private const float SINK_SETTLE = 8f, SINK_RISE = 1.5f;
+        private float _sink;
         private readonly float[] _footLift = new float[2];
+        /// <summary>Test harness: the last hips drop and each foot's lift (m).</summary>
+        public float LastSink;
+        public float[] FootLift => _footLift;
         private int[][] _legs;
 
         /// <summary>
@@ -574,11 +580,24 @@ namespace Eldenheim.Anim
                 if (dt > 0f)
                 {
                     float? g = ground(foot[s]);
-                    float wanted = planted && g.HasValue && Mathf.Abs(g.Value) <= FOOT_REACH ? g.Value : 0f;
+                    // Ground beyond reach: as far as the foot goes, not back to the clip's (a snap
+                    // at the limit, every stride on steep slopes).
+                    float wanted = planted && g.HasValue ? Mathf.Clamp(g.Value, -FOOT_REACH, FOOT_REACH) : 0f;
                     _footLift[s] += (wanted - _footLift[s]) * (1f - Mathf.Exp(-FOOT_SETTLE * dt));
                 }
             }
-            float sink = Mathf.Min(Mathf.Min(_footLift[0], _footLift[1]), 0f);
+            // The hips drop to the lower foot's ground, smoothed over about a step: on a
+            // slope the lower foot swaps every step (behind, then ahead) and the whole body
+            // bobbed with it, up to 0.3 m sprinting up a 56° slope.
+            float lowest = Mathf.Min(Mathf.Min(_footLift[0], _footLift[1]), 0f);
+            if (dt > 0f)
+            {
+                // Down quickly (no foot left short of the ground), back up slowly: the hips ride
+                // the strides' low points instead of rising and falling with each one.
+                _sink += (lowest - _sink) * (1f - Mathf.Exp(-(lowest < _sink ? SINK_SETTLE : SINK_RISE) * dt));
+            }
+            float sink = planted ? Mathf.Min(_sink, 0f) : (_sink = 0f);
+            LastSink = sink;
             hips.y += sink;
             for (int s = 0; s < 2; s++)
             {
