@@ -160,9 +160,6 @@ namespace Eldenheim
         /// <summary>Test switch (the setting command): elbows and wrists kept out of the torso.</summary>
         public static bool ArmsOutOfTorso = true;
 
-        /// <summary>Test switch (the setting command): player capes kept near their skinned shape and simulated every frame (Patches.SetupCloth); takes effect on equipping.</summary>
-        public static bool CapeFix = true;
-
         // The F1 menu's sections, numbered so they list in this order. Those
         // marked (server) follow the server's values in multiplayer (BalanceSync).
         public const string GENERAL = "1 - General", CONTROLS = "2 - Controls", KEYBOARD = "3 - Keyboard & Mouse", GAMEPAD = "4 - Gamepad",

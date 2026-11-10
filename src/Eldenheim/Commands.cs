@@ -858,7 +858,6 @@ namespace Eldenheim
                         case "IframeDebug": Settings.IframeDebug.Value = bool.Parse(a[2]); break;
                         case "Enabled": Settings.Enabled.Value = bool.Parse(a[2]); break;
                         case "GuardTowardCamera": Settings.GuardTowardCamera.Value = bool.Parse(a[2]); break;
-                        case "CapeFix": Settings.CapeFix = bool.Parse(a[2]); break;
                         case "ArmsOutOfTorso": Settings.ArmsOutOfTorso = bool.Parse(a[2]); c.ArmPeak = 0f; break;
                         default: Plugin.Report($"setting: {a[1]} unknown"); break;
                     }
