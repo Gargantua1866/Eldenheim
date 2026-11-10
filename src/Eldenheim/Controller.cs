@@ -2087,13 +2087,20 @@ namespace Eldenheim
         private float LiquidDepth() => Mathf.Max(0f, _vp.GetLiquidLevel() - transform.position.y);
 
         /// <summary>
-        /// Valheim swims once the feet leave the bottom: the sim hands over when the
-        /// water is deeper than the swim depth (Valheim then floats the body, feet
-        /// that far down), and takes back over when the feet touch the bottom again.
+        /// Valheim swims once the feet leave the bottom. The sim hands over when the
+        /// water is deeper than the swim depth by SWIM_IN; Valheim then floats the body
+        /// with the feet that far down. It takes back over only when the feet are on the
+        /// bottom in water shallower than the swim depth by SWIM_OUT. Without that gap the
+        /// two passed the body back and forth every frame and it stuck: Valheim's float
+        /// lifted it into the sim's depth, the sim set it back on the bottom past Valheim's.
         /// Wading in between, still Valheim's "swimming" (Character.IsSwimming), is the sim's.
         /// </summary>
-        private bool Swimming() =>
-            LiquidDepth() > _vp.m_swimDepth + 0.1f || !Active && _vp.IsSwimming() && !_vp.IsOnGround();
+        private bool Swimming() => Active
+            ? LiquidDepth() > _vp.m_swimDepth + SWIM_IN
+            : _vp.IsSwimming() && (!_vp.IsOnGround() || LiquidDepth() > _vp.m_swimDepth - SWIM_OUT);
+
+        /// <summary>The swim hand-off's gap (m), either side of Valheim's swim depth. ESTIMATE.</summary>
+        private const float SWIM_IN = 0.3f, SWIM_OUT = 0.2f;
 
         /// <summary>
         /// The share of a speed left wading, as Character.ApplyLiquidResistance takes it:
