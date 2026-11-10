@@ -234,6 +234,15 @@ namespace Eldenheim.Sim
         public bool ResumeAirAttacks;
         /// <summary>Eldenheim: an air attack can start in any fall, not only a jump's.</summary>
         public bool FallAttacks;
+        /// <summary>
+        /// Eldenheim: a ground attack that goes over a ledge plays on while falling; from its
+        /// cancel frames an attack press turns it into a fall (an air attack once high enough),
+        /// and at its end it is a fall. Back on the ground it simply goes on.
+        /// </summary>
+        public bool AttacksOffLedges;
+        /// <summary>AttacksOffLedges: the attack is falling, at this speed (m/s, up positive).</summary>
+        public bool ActFalling;
+        private float _actFallVel;
         /// <summary>How high above the ground a fall has to be for FallAttacks (m). ESTIMATE.</summary>
         public const float FALL_ATTACK_HEIGHT = 1f;
         /// <summary>
@@ -361,7 +370,7 @@ namespace Eldenheim.Sim
             switch (State)
             {
                 case StateKind.Air: return true;
-                case StateKind.Act: return Act.Id.Tag == ActionTag.Jump && Act.Id.Def().UpAt(Act.F) > 0f;
+                case StateKind.Act: return ActFalling || Act.Id.Tag == ActionTag.Jump && Act.Id.Def().UpAt(Act.F) > 0f;
                 default: return false;
             }
         }
@@ -1035,13 +1044,25 @@ namespace Eldenheim.Sim
                 DoJump(a, def, step, inp, level, target.HasValue);
                 return false;
             }
-            if (!FollowGround(level, (step / Consts.DT).ClampLengthMax(ErData.SPRINT_SPEED)))
+            Vec3 carry = (step / Consts.DT).ClampLengthMax(ErData.SPRINT_SPEED);
+            ActFalling &= a.Id.IsAttack;
+            if (FallsOnInAct(a, level))
+            {
+                if (ActFalling && (Buffer == Req.Light || Buffer == Req.Heavy || Buffer == Req.Left)
+                    && a.F >= (Buffer == Req.Light ? def.CancelLight : Buffer == Req.Heavy ? def.CancelHeavy : def.CancelLeft))
+                {
+                    // Its cancel frame reached mid-fall: a fall, where the press is an air attack (DoAir).
+                    FallFromAct(carry);
+                    return false;
+                }
+            }
+            else if (!FollowGround(level, carry))
             {
                 ResumeAirAttack(a);
                 return false;
             }
 
-            if (Buffer is Req req)
+            if (!ActFalling && Buffer is Req req)
             {
                 float opens;
                 switch (req)
@@ -1080,6 +1101,11 @@ namespace Eldenheim.Sim
             }
 
             bool regen = a.F >= def.CancelMove;
+            if (ActFalling && (hasWish && a.F >= def.CancelMove || a.F >= def.Total))
+            {
+                FallFromAct(carry);
+                return regen;
+            }
             if (inp.Guard.Held && a.F >= def.CancelGuard && LeftButtonDoes() == LeftButton.Guard)
             {
                 State = StateKind.Ground;
@@ -1181,6 +1207,49 @@ namespace Eldenheim.Sim
             {
                 Land(ground, inp, a.Jumped && !a.Falling, locked, a.Thrown);
             }
+        }
+
+        /// <summary>
+        /// AttacksOffLedges: whether this attack goes on off the ground (and its fall, or its landing,
+        /// is taken care of here). Jump attacks' landings, hurts and other acts fall as before.
+        /// </summary>
+        private bool FallsOnInAct(Act a, ILevel level)
+        {
+            AttackKind k = a.Id.IsAttack ? a.Id.Kind : AttackKind.JumpLightLand;
+            if (!AttacksOffLedges || !a.Id.IsAttack || k == AttackKind.JumpLightLand || k == AttackKind.JumpHeavyLand || k == AttackKind.PairedJumpLand)
+            {
+                return false;
+            }
+            float ground = level.Height(Pos.X, Pos.Z);
+            if (!ActFalling)
+            {
+                if (Pos.Y - ground <= Consts.STEP_HEIGHT || Pos.Y - ground <= StepDown)
+                {
+                    Pos.Y = ground;
+                    return true;
+                }
+                ActFalling = true;
+                _actFallVel = 0f;
+                Sprinting = false;
+                Guarding = false;
+                Crouching = false;
+                _peak = Pos.Y;
+            }
+            _actFallVel = F.Max(_actFallVel - Consts.GRAVITY * Consts.DT, -Consts.TERMINAL_VELOCITY);
+            Pos.Y += _actFallVel * Consts.DT;
+            if (Pos.Y <= ground)
+            {
+                Pos.Y = ground;
+                ActFalling = false;
+            }
+            return true;
+        }
+
+        private void FallFromAct(Vec3 carry)
+        {
+            ActFalling = false;
+            State = StateKind.Air;
+            Air = new Air { Vel = new Vec3(carry.X, _actFallVel, carry.Z), Jumped = false, F = 0f };
         }
 
         /// <summary>ResumeAirAttacks: a jump attack's landing gone over an edge mid-swing is its air attack again, at the same frame.</summary>
@@ -1393,6 +1462,7 @@ namespace Eldenheim.Sim
                 return;
             }
             Spend(id.StartCost());
+            ActFalling = false;
             State = StateKind.Act;
             Act = new Act { Id = id, F = 0f, Landed = 0, Paid = 0 };
             Speed = 0f;

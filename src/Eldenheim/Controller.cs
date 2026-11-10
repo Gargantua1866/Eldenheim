@@ -483,6 +483,7 @@ namespace Eldenheim
             LandInPlace = true,
             ResumeAirAttacks = true,
             FallAttacks = true,
+            AttacksOffLedges = true,
             ReverseBackstepFrames = 4f,
             BackstepAttackTurn = 1800f,
         };
