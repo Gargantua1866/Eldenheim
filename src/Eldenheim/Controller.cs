@@ -1730,6 +1730,9 @@ namespace Eldenheim
             if (Active)
             {
                 ChestPitch = MeasureChest();
+                Transform lh = _retarget?.Hips != null ? FindDeep(_retarget.Hips, "LeftHand") : null;
+                Vector3 l = lh != null ? transform.InverseTransformPoint(lh.position) : Vector3.zero;
+                HandDebug = $"lhand {l.x:0.000},{l.y:0.000},{l.z:0.000} grip {_grip:0.00} raw {_gripRaw:0.00} erOff {_retarget?.GripErOff:0.000} armOut {_armOut:0.000}";
             }
             if (Settings.Enabled.Value)
             {
@@ -1792,6 +1795,54 @@ namespace Eldenheim
         internal string FeetDebug => _retarget == null ? "" : $"sink {_retarget.LastSink:0.000} feet {_retarget.FootLift[0]:0.000} {_retarget.FootLift[1]:0.000}";
         /// <summary>Test harness: the chest's pitch against the body (degrees, up positive).</summary>
         internal float ChestPitch;
+        internal string HandDebug;
+        private float _armOut, _gripRaw;
+        private readonly Quaternion[] _leftArmShown = new Quaternion[3];
+        private bool _leftArmHeld;
+        private float _leftArmEase;
+
+        /// <summary>
+        /// While the left arm is pushed out of the torso, its rotations ease from the
+        /// last frame's (about 40 ms). Crossing the body through the torso's middle
+        /// (two-handed grips, Milady's heavy as its second swing ends) the push's way
+        /// out flipped between front and back from one frame to the next: the hand
+        /// jumped 10-20 cm each way.
+        /// </summary>
+        private void SteadyLeftArm(float pushed, float dt)
+        {
+            int[] arm = _retarget.ArmBones(1);
+            if (arm == null || arm.Any(i => i < 0))
+            {
+                return;
+            }
+            // On for a moment after the push ends too, so the arm eases back onto the handle, not snaps.
+            _leftArmEase = pushed > 0.005f ? 0.12f : Mathf.Max(_leftArmEase - dt, 0f);
+            if (_leftArmEase > 0f && _leftArmHeld && dt > 0f)
+            {
+                float k = 1f - Mathf.Exp(-25f * dt);
+                for (int i = 0; i < 3; i++)
+                {
+                    _local[arm[i]] = Quaternion.Slerp(_leftArmShown[i], _local[arm[i]], k);
+                }
+            }
+            for (int i = 0; i < 3; i++)
+            {
+                _leftArmShown[i] = _local[arm[i]];
+            }
+            _leftArmHeld = true;
+        }
+
+        private static Transform FindDeep(Transform t, string name)
+        {
+            foreach (Transform c in t.GetComponentsInChildren<Transform>())
+            {
+                if (c.name == name)
+                {
+                    return c;
+                }
+            }
+            return null;
+        }
 
         private float MeasureChest()
         {
@@ -3332,7 +3383,10 @@ namespace Eldenheim
             // Not on guard: the hand stays on the weapon where ER's guard holds it.
             if (Settings.ArmsOutOfTorso && !(guarding && _grip > 0f))
             {
-                _grip *= Mathf.Clamp01(1f - _retarget.KeepArmOut(1, _local, hips) / 0.08f);
+                _armOut = _retarget.KeepArmOut(1, _local, hips);
+                _gripRaw = _grip;
+                _grip *= Mathf.Clamp01(1f - _armOut / 0.08f);
+                SteadyLeftArm(_armOut, dt);
             }
             ArmPeak = Mathf.Max(ArmPeak, _retarget.ArmDepth);
             if (_grip > 0f)

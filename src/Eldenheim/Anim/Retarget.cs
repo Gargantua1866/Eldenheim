@@ -375,6 +375,9 @@ namespace Eldenheim.Anim
         public float ArmDepth;
 
         /// <summary>Keeps one arm (0 right, 1 left) out of the torso. How far the wrist moved (m).</summary>
+        /// <summary>The arm's bone indices in the local array (0 right, 1 left: upper arm, forearm, hand), once KeepArmOut has run.</summary>
+        public int[] ArmBones(int side) => _arms?[side];
+
         public float KeepArmOut(int side, Quaternion[] local, Vector3 hips)
         {
             if (_arms == null)
