@@ -152,7 +152,7 @@ namespace Eldenheim
             if (_ytrace != null && Player.m_localPlayer != null && Controller.Local?.Sim is Eldenheim.Sim.Player sp)
             {
                 Vector3 b = Player.m_localPlayer.transform.position;
-                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} sim y {sp.Pos.Y:0.000} {sp.State} {(sp.State == Eldenheim.Sim.StateKind.Act ? sp.Act.Id.ToString() : "")} speed {sp.Speed:0.0} slip {Controller.Local.Level?.Slippage:0.00} n.y {Controller.Local.Level?.GroundNormal.y:0.00} miss {Controller.Local.LastMiss.y:0.000},{Controller.Local.LastMiss.z:0.000} hips {Controller.Local.HipsY:0.000} aim {sp.AimPitch * Mathf.Rad2Deg:0} shown {Controller.Local.AimShown * Mathf.Rad2Deg:0.00} chest {Controller.Local.ChestPitch:0.00} clip {Controller.Local.ShownClip}");
+                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} sim y {sp.Pos.Y:0.000} {sp.State} {(sp.State == Eldenheim.Sim.StateKind.Act ? sp.Act.Id.ToString() : "")} speed {sp.Speed:0.0} slip {Controller.Local.Level?.Slippage:0.00} n.y {Controller.Local.Level?.GroundNormal.y:0.00} miss {Controller.Local.LastMiss.y:0.000},{Controller.Local.LastMiss.z:0.000} hips {Controller.Local.HipsY:0.000} aim {sp.AimPitch * Mathf.Rad2Deg:0} shown {Controller.Local.AimShown * Mathf.Rad2Deg:0.00} chest {Controller.Local.ChestPitch:0.00} clip {Controller.Local.ShownClip} {Controller.Local.FeetDebug}");
             }
             if (_smooth != null && Player.m_localPlayer != null && Time.deltaTime > 0f)
             {
@@ -404,16 +404,18 @@ namespace Eldenheim
                     // landings: the held moveset's jump-attack landings (frames: total, cancel by moving, first hit) and its air swings.
                     {
                         var m = c.Sim.Moveset();
-                        foreach (var k in new[] { Eldenheim.Sim.AttackKind.JumpLightLand, Eldenheim.Sim.AttackKind.JumpLightLandShort, Eldenheim.Sim.AttackKind.JumpHeavyLand, Eldenheim.Sim.AttackKind.JumpHeavyLandShort })
+                        foreach (var k in new[] { Eldenheim.Sim.AttackKind.JumpLightLand, Eldenheim.Sim.AttackKind.JumpLightLandShort, Eldenheim.Sim.AttackKind.JumpHeavyLand, Eldenheim.Sim.AttackKind.JumpHeavyLandShort, Eldenheim.Sim.AttackKind.PairedJumpLand, Eldenheim.Sim.AttackKind.PairedJumpLandShort })
                         {
                             var d = m.Attack(k);
-                            Plugin.Report(d == null ? $"landings: {k} none" : $"landings: {k} total {d.Total:0} move {d.CancelMove:0} light {d.CancelLight:0} first hit {d.FirstHit?.From:0}-{d.FirstHit?.To:0} src {d.Source}");
+                            Plugin.Report(d == null ? $"landings: {k} none" : $"landings: {k} total {d.Total:0} move {d.CancelMove:0} light {d.CancelLight:0} hits {string.Join(" ", d.Hits.Select(h => $"{h.From:0}-{h.To:0}"))} src {d.Source}");
                         }
                         foreach (bool heavy in new[] { false, true })
                         {
                             var d = m.Air(heavy);
                             Plugin.Report($"landings: air {(heavy ? "heavy" : "light")} {d?.From:0}-{d?.To:0} src {d?.Source}");
                         }
+                        var pd = m.AirPaired();
+                        Plugin.Report($"landings: air paired {pd?.From:0}-{pd?.To:0} src {pd?.Source}");
                     }
                     break;
                 case "capeprobe":
@@ -857,6 +859,7 @@ namespace Eldenheim
                         case "ValheimIframes": Settings.ValheimIframes.Value = bool.Parse(a[2]); break;
                         case "IframeDebug": Settings.IframeDebug.Value = bool.Parse(a[2]); break;
                         case "Enabled": Settings.Enabled.Value = bool.Parse(a[2]); break;
+                        case "Moveset": Settings.Moveset[a[2]].Value = string.Join(" ", a.Skip(3)); break;
                         case "ValheimEmptyHanded": Settings.ValheimEmptyHanded.Value = bool.Parse(a[2]); break;
                         case "GuardTowardCamera": Settings.GuardTowardCamera.Value = bool.Parse(a[2]); break;
                         case "ArmsOutOfTorso": Settings.ArmsOutOfTorso = bool.Parse(a[2]); c.ArmPeak = 0f; break;
