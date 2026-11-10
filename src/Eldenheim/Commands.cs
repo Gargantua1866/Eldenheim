@@ -35,64 +35,6 @@ namespace Eldenheim
         private static string _probeRun;
         private static List<float> _smooth;
         private static List<string> _ytrace;
-        private static Dictionary<string, float> _cape;
-        private static int _capeFrames, _capeOver;
-        private static Mesh _capeMesh;
-
-        /// <summary>capeprobe: the cape's furthest drawn vertex in front of the chest this frame.</summary>
-        private static void SampleCape(Player vp)
-        {
-            Transform chest = vp.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Spine2");
-            if (chest == null)
-            {
-                return;
-            }
-            Vector3 fwd = vp.transform.forward;
-            float most = float.MinValue;
-            foreach (MagicaCloth2.MagicaCloth mc in vp.GetComponentsInChildren<MagicaCloth2.MagicaCloth>())
-            {
-                foreach (Renderer r in mc.SerializeData.sourceRenderers)
-                {
-                    if (r is SkinnedMeshRenderer smr)
-                    {
-                        if (_capeMesh == null)
-                        {
-                            _capeMesh = new Mesh();
-                        }
-                        smr.BakeMesh(_capeMesh, true);
-                        // Baked with the renderer's scale: only its place and turn remain.
-                        Matrix4x4 m = Matrix4x4.TRS(smr.transform.position, smr.transform.rotation, Vector3.one);
-                        foreach (Vector3 v in _capeMesh.vertices)
-                        {
-                            most = Mathf.Max(most, Vector3.Dot(m.MultiplyPoint3x4(v) - chest.position, fwd));
-                        }
-                    }
-                    else if (r is MeshRenderer mr && mr.GetComponent<MeshFilter>()?.sharedMesh is Mesh mesh)
-                    {
-                        Matrix4x4 m = mr.transform.localToWorldMatrix;
-                        foreach (Vector3 v in mesh.vertices)
-                        {
-                            most = Mathf.Max(most, Vector3.Dot(m.MultiplyPoint3x4(v) - chest.position, fwd));
-                        }
-                    }
-                }
-            }
-            if (most == float.MinValue)
-            {
-                return;
-            }
-            Controller c = Controller.Local;
-            string at = c?.Sim == null ? "?" : c.Sim.State == Eldenheim.Sim.StateKind.Act ? $"{c.Sim.Act.Id} f{c.Sim.Act.F:0}" : c.Sim.State.ToString();
-            _capeFrames++;
-            if (most > 0.15f)
-            {
-                _capeOver++;
-            }
-            if (!_cape.TryGetValue(at, out float was) || most > was)
-            {
-                _cape[at] = most;
-            }
-        }
         private static Vector3 _smoothLast;
 
         public static void Poll(string path)
@@ -128,10 +70,6 @@ namespace Eldenheim
             if (_deform != null)
             {
                 SampleDeform();
-            }
-            if (_cape != null && Player.m_localPlayer != null)
-            {
-                SampleCape(Player.m_localPlayer);
             }
             if (_ytrace != null && Player.m_localPlayer != null && Controller.Local?.Sim is Eldenheim.Sim.Player sp)
             {
@@ -368,22 +306,6 @@ namespace Eldenheim
                                       $"mode {sd.colliderCollisionConstraint.mode} colliders " + string.Join("; ", sd.colliderCollisionConstraint.colliderList.Where(cc => cc != null)
                                           .Select(cc => $"{cc.GetType().Name} on {cc.transform.name} size {cc.GetSize():F3} centre {cc.center:F3}")));
                         File.WriteAllText(Path.Combine(Plugin.Dir, $"cloth-{vp.GetInventory().GetAllItems().FirstOrDefault(i => i.m_equipped && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shoulder)?.m_dropPrefab?.name}-{mc.name}.json"), json);
-                    }
-                    break;
-                case "capeprobe":
-                    // capeprobe start|stop: per frame, how far the cape's drawn vertices get in front of the chest
-                    // (along the body's facing, from the Spine2 bone), worst per action frame.
-                    if (a[1] == "start")
-                    {
-                        _cape = new Dictionary<string, float>();
-                        _capeFrames = 0;
-                        _capeOver = 0;
-                    }
-                    else if (_cape != null)
-                    {
-                        var worst = _cape.OrderByDescending(kv => kv.Value).Take(8).Select(kv => $"{kv.Key} {kv.Value:+0.00;-0.00}");
-                        Plugin.Report($"capeprobe: {_capeFrames} frames, {_capeOver} with the cape over 15 cm in front of the chest; worst: {string.Join(", ", worst)}");
-                        _cape = null;
                     }
                     break;
                 case "heal":
