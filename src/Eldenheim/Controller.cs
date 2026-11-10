@@ -2554,6 +2554,11 @@ namespace Eldenheim
         /// <summary>In the air and clear of the ground: hits below the hips miss (Incoming, the sim's Jumped).</summary>
         private bool LegsClear() => Sim != null && Sim.Airborne() && Sim.Pos.Y - _level.Height(Sim.Pos.X, Sim.Pos.Z) > Consts.JUMP_CLEARANCE;
 
+        private bool Below(Vector3 point) => _retarget?.Hips != null && point.y < _retarget.Hips.position.y;
+
+        /// <summary>A blow at this point misses: below the hips of a body in the air, clear of the ground (Incoming's Jumped).</summary>
+        public bool PassesUnder(Vector3 point) => Active && !Remote && LegsClear() && Below(point);
+
         /// <summary>IframeDebug: the window the current dodge has, and where in it the player is.</summary>
         public string IframeStatus()
         {
@@ -2998,7 +3003,7 @@ namespace Eldenheim
             // As in ER, a jump carries the legs over a blow: a hit landing below
             // the hips misses while the body is in the air, clear of the ground (the sim's JUMP_CLEARANCE).
             Transform hips = _retarget?.Hips;
-            bool low = hips != null && hit.m_point != Vector3.zero && hit.m_point.y < hips.position.y;
+            bool low = hit.m_point != Vector3.zero && Below(hit.m_point);
             HitResult result = Sim.ReceiveHit(new Incoming { Damage = 0f, Stamina = 0f, From = _hitFrom, Low = low, Level = HurtLevel.Small }, _level);
             Log.Add($"Incoming {hit.GetTotalDamage():0} at {(hips != null ? hit.m_point.y - hips.position.y : 0f):+0.00;-0.00} m from the hips → {result}");
             switch (result)

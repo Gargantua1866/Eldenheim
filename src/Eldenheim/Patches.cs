@@ -42,6 +42,8 @@ namespace Eldenheim
             Try(h, typeof(Projectile), "UpdateVisual", prefix: nameof(ProjectileVisual));
             Try(h, typeof(Projectile), "OnHit", postfix: nameof(ProjectileHit));
             Try(h, typeof(MonoUpdaters), "FixedUpdate", prefix: nameof(PhysicsStep));
+            Try(h, typeof(Attack), "AddHitPoint", prefix: nameof(AttackHitPoint));
+            Try(h, typeof(VisEquipment), "SetupCloth", prefix: nameof(SetupCloth));
             try
             {
                 h.Patch(AccessTools.Method(typeof(Player), "UpdateStats", new[] { typeof(float) }),
@@ -146,6 +148,36 @@ namespace Eldenheim
         }
 
         private static void PhysicsStep() => Controller.BeforePhysicsStep();
+
+        /// <summary>
+        /// A player's cloth that follows the animator's timing (the deer hide cape:
+        /// AnimatorLinkage) simulates only on frames with a physics step, the
+        /// player's animator being Fixed. Eldenheim poses the body every rendered
+        /// frame, so in a fast swing the torso passed through the cape left behind
+        /// in between: it simulates every frame instead, as the other capes do.
+        /// </summary>
+        private static void SetupCloth(VisEquipment __instance, GameObject item)
+        {
+            if (!Settings.Enabled.Value || !Settings.ClothEveryFrame || item == null || !__instance.m_isPlayer)
+            {
+                return;
+            }
+            foreach (MagicaCloth2.MagicaCloth cloth in item.GetComponentsInChildren<MagicaCloth2.MagicaCloth>(true))
+            {
+                if (cloth.SerializeData.updateMode == MagicaCloth2.ClothUpdateMode.AnimatorLinkage)
+                {
+                    cloth.SerializeData.updateMode = MagicaCloth2.ClothUpdateMode.Normal;
+                }
+            }
+        }
+
+        /// <summary>
+        /// A melee blow passing under a jump's legs (Controller.Incoming's Jumped)
+        /// is no hit at all where the attack runs: no sparks or hit sound, as a
+        /// dodge's i-frames (Attack.DoMeleeAttack skips IsDodgeInvincible targets).
+        /// </summary>
+        private static bool AttackHitPoint(GameObject go, Vector3 point) =>
+            !((object)go == (Player.m_localPlayer != null ? Player.m_localPlayer.gameObject : null) && Controller.Local is Controller ctl && ctl.PassesUnder(point));
 
         private static bool UpdateMotion(Character __instance, float dt)
         {
