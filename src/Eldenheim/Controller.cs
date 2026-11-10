@@ -473,6 +473,7 @@ namespace Eldenheim
             NoAirAttackBuffer = true,
             LandFollowUps = true,
             LandInPlace = true,
+            ResumeAirAttacks = true,
             ReverseBackstepFrames = 4f,
             BackstepAttackTurn = 1800f,
         };
@@ -2416,7 +2417,7 @@ namespace Eldenheim
         /// <summary>Charges the hits whose windows opened this tick (frames after fromF), and an air attack that began.</summary>
         private void ChargeAttacks(float fromF, bool wasAir)
         {
-            if (Sim.AirAttackState is AirAttack air && !wasAir)
+            if (Sim.AirAttackState is AirAttack air && !wasAir && !air.Resumed)
             {
                 ItemDrop.ItemData item = (Sim.Grip == Grip.TwoHandLeft ? Left : Right) ?? Unarmed;
                 UseAttack($"jump attack ({item?.m_shared.m_name})", AttackCost(air.Moveset, item, air.Def.Stamina));

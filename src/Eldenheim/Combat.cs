@@ -135,6 +135,23 @@ namespace Eldenheim
             // Every open window sweeps for its whole length: one contact (a bush,
             // the first of a group) must not use the swing up, as it does the
             // sandbox's single dummy. Each window strikes each target once.
+            if (_resumedSwing)
+            {
+                // Whatever the landing struck (or threw), the air swing's windows have struck already.
+                _resumedSwing = false;
+                var done = new HashSet<GameObject>();
+                foreach (HashSet<GameObject> set in _struck.Values)
+                {
+                    done.UnionWith(set);
+                }
+                foreach (int key in new[] { 15, 16 })
+                {
+                    if (done.Count > 0 && !_struck.ContainsKey(key))
+                    {
+                        _struck[key] = new HashSet<GameObject>(done);
+                    }
+                }
+            }
             if (p.AirAttackState.HasValue)
             {
                 ActiveHit air = p.ActiveHitNow();
@@ -431,6 +448,7 @@ namespace Eldenheim
         private readonly Dictionary<int, HashSet<GameObject>> _struck = new Dictionary<int, HashSet<GameObject>>();
         private readonly Dictionary<int, Blade> _owners = new Dictionary<int, Blade>();
         private int _hitsSerial = -1;
+        private bool _resumedSwing;
 
         /// <summary>
         /// The hand a window belongs to. In power stance (and with fists or
@@ -903,7 +921,13 @@ namespace Eldenheim
             bool same = air == _lastAir && (air || acting && act == _lastAct) && f >= _lastF;
             // A jump attack's landing carries on its swing: its first window's sound has played.
             bool landing = _lastAir && !air && acting && act.IsAttack && SimPlayer.IsJumpLanding(act.Kind);
-            if (!same)
+            // That landing gone over an edge mid-swing (ResumeAirAttacks): the same swing, back in the air.
+            bool resumed = air && p.AirAttackState.Value.Resumed && !_lastAir && _lastAct.IsAttack && SimPlayer.IsJumpLanding(_lastAct.Kind);
+            if (resumed)
+            {
+                _resumedSwing = true;
+            }
+            else if (!same)
             {
                 _actSerial++;
                 _lastF = -1f;
@@ -931,7 +955,7 @@ namespace Eldenheim
                     closes[i] = hits[i].To;
                 }
             }
-            if (!same && !landing)
+            if (!same && !landing && !resumed)
             {
                 _sounded.Clear();
             }

@@ -88,6 +88,8 @@ namespace Eldenheim.Sim
         public AirAttackDef Def;
         public float F;
         public bool HitDone;
+        /// <summary>Carried back into the air from its landing (ResumeAirAttacks): already paid for.</summary>
+        public bool Resumed;
     }
 
     public struct Air
@@ -220,6 +222,19 @@ namespace Eldenheim.Sim
         public bool LandFollowUps;
         /// <summary>Eldenheim: a jump attack landing mid-swing goes on at the swing's frame, never stepping back to the landing's first hit.</summary>
         public bool LandInPlace;
+        /// <summary>
+        /// Eldenheim: a jump attack's landing that walks off a ledge (or a creature's
+        /// back) goes on in the air and lands again (in its short landing once the
+        /// swing is over), instead of ending in a plain fall.
+        /// </summary>
+        public bool ResumeAirAttacks;
+        /// <summary>
+        /// Eldenheim: Elden Ring's free aim, unlocked: how far (radians, up positive)
+        /// the attack's blade path is tilted about the hips, as the drawn upper body is.
+        /// </summary>
+        public float AimPitch;
+        /// <summary>Height above the feet the aim tilts about (about the hips).</summary>
+        public const float AIM_PIVOT = 1f;
         /// <summary>
         /// Eldenheim: Elden Ring's reverse backstep (which the sandbox lacks). A
         /// move input within this many frames of a backstep's start, not locked
@@ -951,6 +966,7 @@ namespace Eldenheim.Sim
             }
             if (!FollowGround(level, (step / Consts.DT).ClampLengthMax(ErData.SPRINT_SPEED)))
             {
+                ResumeAirAttack(a);
                 return false;
             }
 
@@ -1092,6 +1108,24 @@ namespace Eldenheim.Sim
             else
             {
                 Land(ground, inp, a.Jumped && !a.Falling, locked, a.Thrown);
+            }
+        }
+
+        /// <summary>ResumeAirAttacks: a jump attack's landing gone over an edge mid-swing is its air attack again, at the same frame.</summary>
+        private void ResumeAirAttack(Act a)
+        {
+            AttackKind k = a.Id.IsAttack ? a.Id.Kind : AttackKind.Light1;
+            bool heavy = k == AttackKind.JumpHeavyLand, paired = k == AttackKind.PairedJumpLand;
+            if (!ResumeAirAttacks || !(heavy || paired || k == AttackKind.JumpLightLand))
+            {
+                return;
+            }
+            Moveset m = a.Id.Moveset;
+            AirAttackDef air = paired ? m.AirPaired() : m.Air(heavy);
+            // Past the swing too: it then lands in its short landing, not a plain fall's.
+            if (air != null)
+            {
+                AirAttackState = new AirAttack { Heavy = heavy, Paired = paired, Moveset = m, Def = air, F = a.F, HitDone = a.Landed != 0, Resumed = true };
             }
         }
 
