@@ -62,6 +62,8 @@ namespace Eldenheim
         private float _slippage;
         /// <summary>How fast the slide fades off steep ground (share per second): about a quarter of a second.</summary>
         private const float SlideFade = 4f;
+        /// <summary>Valheim's cap on climbing (Character.UpdateWalking: currentVel.y at most 3 m/s).</summary>
+        private const float MaxClimb = 3f;
         private readonly RaycastHit[] _hits = new RaycastHit[16];
         private static readonly System.Collections.Generic.Dictionary<Collider, bool> LadderOf = new System.Collections.Generic.Dictionary<Collider, bool>();
 
@@ -165,7 +167,10 @@ namespace Eldenheim
                 GroundNormal = underNormal;
                 GroundPoint = Space.ToUnity(new Vec3(pos.X, underY, pos.Z));
                 OnSteep = ground.y < SlideY;
-                delta *= SlopeFactor(ground, delta);
+                // Uphill by the ground under the body's middle (the wide cast at a slope's foot
+                // already reads the face ahead, and held the body there); downhill by the wide one.
+                float factor = SlopeFactor(ground, delta);
+                delta *= factor < 1f ? factor : SlopeFactor(underNormal, delta);
                 bool moving = delta.X * delta.X + delta.Z * delta.Z > 1e-8f;
                 // Off steep ground the slide fades out (Valheim drops it at once, but its
                 // body's momentum carries on): on bumpy ground either side of 38° the speed
@@ -181,6 +186,17 @@ namespace Eldenheim
                 }
             }
             float x = pos.X + delta.X, z = pos.Z + delta.Z;
+            if (onFoot)
+            {
+                // Never climbing faster than Valheim lets a player (3 m/s), by the height this move gains.
+                float rise = Ground(x, z, out _, out _) - underY, most = MaxClimb * Consts.DT;
+                if (rise > most && rise <= Consts.STEP_HEIGHT)
+                {
+                    float keep = most / rise;
+                    x = pos.X + delta.X * keep;
+                    z = pos.Z + delta.Z * keep;
+                }
+            }
             if (CanEnter(pos, x, z, onFoot))
             {
                 pos.X = x;
@@ -216,8 +232,9 @@ namespace Eldenheim
         }
 
         /// <summary>
-        /// Speed along ground of normal n: half the slope's sine slower uphill
-        /// (0.69 at 38°), a quarter of it faster downhill.
+        /// Speed along ground of normal n. Uphill as Valheim (Character.UpdateWalking moves
+        /// along the slope's plane at full speed): the cosine; Slide also caps the climb at
+        /// Valheim's 3 m/s. Downhill a quarter of the slope's sine faster.
         /// </summary>
         internal static float SlopeFactor(Vector3 n, Vec3 delta)
         {
@@ -230,7 +247,7 @@ namespace Eldenheim
             }
             float grade = -(n.x * dir.x + n.z * dir.z) / (len * Mathf.Max(n.y, 0.1f));
             float sin = grade / Mathf.Sqrt(1f + grade * grade);
-            return sin > 0f ? 1f - 0.5f * sin : 1f - 0.25f * sin;
+            return sin <= 0f ? 1f - 0.25f * sin : 1f / Mathf.Sqrt(1f + grade * grade);
         }
     }
 }
