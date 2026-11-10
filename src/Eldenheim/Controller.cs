@@ -55,7 +55,7 @@ namespace Eldenheim
         private bool _recenter;
         private float _bodyY;
         // The drawn height's easing over a step (Pose), and the sim height and place it was last eased from.
-        private float _stepEase, _rootY, _slopeRate;
+        private float _stepEase, _rootY;
         private Vector3 _rootAt;
         private float _grip;
         private bool _counterSounded;
@@ -501,6 +501,7 @@ namespace Eldenheim
             }
             _acc = 0f;
             _tickFrom = _tickTo = _expected = _body.position;
+            _groundY = _body.position.y;
             _yawFrom = _yawTo = transform.eulerAngles.y;
             // The rig first: the blade's axis is measured on its attach point.
             BuildPose();
@@ -1740,6 +1741,33 @@ namespace Eldenheim
 
         // --- The physics step (Character.UpdateMotion is replaced by this) -------
 
+        // The body's (and so the camera's) height on foot, smoothed (GroundY).
+        private float _groundY, _groundRate;
+
+        /// <summary>
+        /// The height the body is sent to after a tick. On foot over uneven
+        /// ground the sim's height climbs in uneven steps (its cast moves from one
+        /// terrain facet to the next: 9 then 19 cm a tick up a 56° slope) and the
+        /// body, and the camera on it, jittered: there it runs on at the slope's
+        /// smoothed rate, kept within 12 cm of the sim's (PhysX holding the body
+        /// back that little is ignored). Steps, the air and teleports are the sim's as they are.
+        /// </summary>
+        private float GroundY(Vector3 to, Vector3 from)
+        {
+            float simY = to.y, change = simY - _groundY;
+            float moved = new Vector2(to.x - from.x, to.z - from.z).magnitude;
+            bool planted = !Sim.Airborne() && Sim.State != StateKind.Air && Sim.State != StateKind.Dead;
+            if (!planted || Mathf.Abs(change) > 0.12f + 1.2f * moved)
+            {
+                _groundRate = 0f;
+                return _groundY = simY;
+            }
+            _groundRate += (change / Consts.DT - _groundRate) * (1f - Mathf.Exp(-10f * Consts.DT));
+            float y = _groundY + _groundRate * Consts.DT;
+            y += (simY - y) * (1f - Mathf.Exp(-12f * Consts.DT));
+            return _groundY = Mathf.Clamp(y, simY - 0.12f, simY + 0.12f);
+        }
+
         /// <summary>Test harness (ytrace): the ground model and how far PhysX last held the body from where it was sent.</summary>
         internal PhysicsLevel Level => _level;
         internal Vector3 LastMiss;
@@ -1773,6 +1801,7 @@ namespace Eldenheim
                 // Teleported (or pushed far): start again from the body.
                 Sim.Pos = Space.ToSim(_body.position);
                 _tickFrom = _tickTo = _expected = _body.position;
+                _groundY = _body.position.y;
             }
             else
             {
@@ -1788,6 +1817,7 @@ namespace Eldenheim
                     Sim.Pos.Y += shift.Y;
                     _tickFrom += miss;
                     _tickTo += miss;
+                    _groundY += miss.y;
                 }
             }
 
@@ -1813,9 +1843,11 @@ namespace Eldenheim
             {
                 _acc -= Consts.DT;
                 _tickFrom = Space.ToUnity(Sim.Pos);
+                _tickFrom.y = _groundY;
                 _yawFrom = Space.YawToUnityDeg(Sim.Yaw);
                 Tick(_bindings.Take());
                 _tickTo = Space.ToUnity(Sim.Pos);
+                _tickTo.y = GroundY(_tickTo, _tickFrom);
                 _yawTo = Space.YawToUnityDeg(Sim.Yaw);
             }
 
@@ -3163,38 +3195,31 @@ namespace Eldenheim
             // The sim snaps the body up and down whole steps; the body eases
             // onto the new height instead, and each foot finds its own ground.
             bool planted = !p.Airborne() && p.State != StateKind.Air && p.State != StateKind.Dead;
-            // On foot the drawn height is the sim's (the body's, eased), not
-            // the physics body's, which bounces against steep ground.
+            // The drawn height is the physics body's: it is sent to the sim's
+            // height smoothed on slopes (GroundY), and Unity interpolates it
+            // between physics steps more evenly than the 60 Hz ticks are.
             float bodyY = transform.position.y;
-            float simY = Mathf.Lerp(_tickFrom.y, _tickTo.y, Mathf.Clamp01(alpha));
-            float rootY = planted && Mathf.Abs(simY - bodyY) < 0.5f ? simY : bodyY;
+            float rootY = bodyY;
             Vector3 simAt = Vector3.Lerp(_tickFrom, _tickTo, Mathf.Clamp01(alpha));
             float moved = new Vector2(simAt.x - _rootAt.x, simAt.z - _rootAt.z).magnitude;
             if (!planted || Mathf.Abs(rootY - _bodyY) > 1f)
             {
                 _bodyY = rootY;
-                _stepEase = _slopeRate = 0f;
+                _stepEase = 0f;
             }
             else
             {
-                // A step (more height than a slope of ~50° gives for how far the
-                // body went) eases over as before. On a slope the drawn height
-                // also runs on at the slope's own smoothed rate: easing alone left
-                // it lagging 0.1-0.3 m behind, more or less with the speed (a bob),
-                // and following the sim as it is showed its cast's jitter on bumps.
+                // Only a step (more height than a slope of ~50° gives for how far
+                // the body went) eases; slopes are followed as they are (their
+                // height comes smoothed: GroundY). Easing those too left the body
+                // lagging 0.1-0.3 m behind on a slope, bobbing with the speed.
                 float change = rootY - _rootY;
                 if (Mathf.Abs(change) > 0.05f + 1.2f * moved)
                 {
                     _stepEase -= change;
                 }
-                else if (dt > 1e-4f)
-                {
-                    _slopeRate += (change / dt - _slopeRate) * (1f - Mathf.Exp(-10f * dt));
-                }
                 _stepEase *= Mathf.Exp(-16f * dt);
-                float goal = rootY + _stepEase;
-                _bodyY += _slopeRate * dt;
-                _bodyY += (goal - _bodyY) * (1f - Mathf.Exp(-12f * dt));
+                _bodyY = rootY + _stepEase;
             }
             _rootY = rootY;
             _rootAt = simAt;
