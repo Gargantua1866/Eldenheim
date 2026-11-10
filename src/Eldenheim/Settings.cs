@@ -298,6 +298,15 @@ namespace Eldenheim
             WeaponKnockbackScale = Bind(c, COMBAT, "WeaponKnockbackScale", 1f,
                 Combat("Multiplies how far Eldenheim's hits push what they strike (Valheim's weapon knockback, its Attack Force). 1 = Valheim's; " +
                        "lower it for weapons such as maces that shove enemies far away, 0 = no push.", new AcceptableValueRange<float>(0f, 2f)));
+            // Kept to one decimal (the slider gives any value).
+            WeaponKnockbackScale.SettingChanged += (_, __) =>
+            {
+                float tenth = (float)System.Math.Round(WeaponKnockbackScale.Value, 1);
+                if (WeaponKnockbackScale.Value != tenth)
+                {
+                    WeaponKnockbackScale.Value = tenth;
+                }
+            };
             PoiseScale = Bind(c, COMBAT, "StaggerScale", 1f, Combat("Multiplies how much each swing staggers."), balance);
             ValheimIframes = Bind(c, COMBAT, "ValheimIframes", false,
                 Combat("Off (Elden Ring): rolls are invincible for frames 0-13 at 30 per second (0.43 s; 0-12 when heavily loaded), the backstep for " +
