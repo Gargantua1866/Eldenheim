@@ -416,9 +416,14 @@ namespace Eldenheim
                 why = "animator not ready";
                 return false;
             }
-            if (_vp.IsDead() || _vp.IsAttached() || _vp.IsSwimming() || _vp.InIntro() || _vp.IsDebugFlying() || _vp.IsTeleporting() || _vp.InPlaceMode())
+            if (_vp.IsDead() || _vp.IsAttached() || _vp.InIntro() || _vp.IsDebugFlying() || _vp.IsTeleporting() || _vp.InPlaceMode())
             {
                 why = "busy";
+                return false;
+            }
+            if (Swimming())
+            {
+                why = "swimming";
                 return false;
             }
             if (GrapplingPoint.m_localGrappler != null)
@@ -2052,6 +2057,8 @@ namespace Eldenheim
             }
             Sim.SprintScale = SprintScale() * speed;
             Sim.MoveScale = Mathf.Max(1f + GearMovement(), 0.1f) * speed;
+            Sim.SprintScale *= Wading(ErData.SPRINT_SPEED * Sim.SprintScale);
+            Sim.MoveScale *= Wading(ErData.RUN_SPEED * Sim.MoveScale);
             var jump = new Vector3(0f, _vp.m_jumpForce * (1f + _vp.GetSkillFactor(Skills.SkillType.Jump) * 0.4f), 0f);
             _vp.GetSEMan().ApplyStatusEffectJumpMods(ref jump);
             // Valheim scales the take-off speed: the height goes with its square.
@@ -2076,6 +2083,33 @@ namespace Eldenheim
         /// walk object that clears the snow), the snow brushed off pieces, and
         /// the slow (a share of speed) for how deep the player stands in it.
         /// </summary>
+        /// <summary>How deep the feet are in water or tar (m).</summary>
+        private float LiquidDepth() => Mathf.Max(0f, _vp.GetLiquidLevel() - transform.position.y);
+
+        /// <summary>
+        /// Valheim swims once the feet leave the bottom: the sim hands over when the
+        /// water is deeper than the swim depth (Valheim then floats the body, feet
+        /// that far down), and takes back over when the feet touch the bottom again.
+        /// Wading in between, still Valheim's "swimming" (Character.IsSwimming), is the sim's.
+        /// </summary>
+        private bool Swimming() =>
+            LiquidDepth() > _vp.m_swimDepth + 0.1f || !Active && _vp.IsSwimming() && !_vp.IsOnGround();
+
+        /// <summary>
+        /// The share of a speed left wading, as Character.ApplyLiquidResistance takes it:
+        /// speed − speed² × 0.05 (tar: 0.1) × how deep, full at a third of the body's height.
+        /// </summary>
+        private float Wading(float speed)
+        {
+            float depth = LiquidDepth();
+            if (depth <= 0f || _vp.GetSEMan().HaveStatusEffect(SEMan.s_statusEffectTared))
+            {
+                return 1f;
+            }
+            float share = Mathf.Clamp01(depth / (_vp.GetCollider().height / 3f));
+            return Mathf.Max(1f - speed * share * (_vp.InWater() ? 0.05f : 0.1f), 0.1f);
+        }
+
         private float DeepSnow()
         {
             Vector3 pos = transform.position;
