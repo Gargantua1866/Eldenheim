@@ -35,6 +35,8 @@ namespace Eldenheim
         private static string _probeRun;
         private static List<float> _smooth;
         private static List<string> _ytrace;
+        internal static Vector3? VDrive;
+        internal static bool VDriveRun;
         private static Dictionary<string, float> _cape;
         private static int _capeFrames, _capeOver, _capeInside;
         private static float _capeDeep, _capeDeepest, _capeBase;
@@ -149,10 +151,15 @@ namespace Eldenheim
             {
                 SampleCape(Player.m_localPlayer);
             }
-            if (_ytrace != null && Player.m_localPlayer != null && Controller.Local?.Sim is Eldenheim.Sim.Player sp)
+            if (_ytrace != null && Player.m_localPlayer != null && !(Controller.Local?.Active ?? false))
             {
                 Vector3 b = Player.m_localPlayer.transform.position;
-                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} sim y {sp.Pos.Y:0.000} {sp.State} {(sp.State == Eldenheim.Sim.StateKind.Act ? sp.Act.Id.ToString() : "")} speed {sp.Speed:0.0} slip {Controller.Local.Level?.Slippage:0.00} n.y {Controller.Local.Level?.GroundNormal.y:0.00} miss {Controller.Local.LastMiss.y:0.000},{Controller.Local.LastMiss.z:0.000} hips {Controller.Local.HipsY:0.000} aim {sp.AimPitch * Mathf.Rad2Deg:0} shown {Controller.Local.AimShown * Mathf.Rad2Deg:0.00} chest {Controller.Local.ChestPitch:0.00} clip {Controller.Local.ShownClip} {Controller.Local.FeetDebug} {Controller.Local.HandDebug}");
+                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} vanilla");
+            }
+            if (_ytrace != null && Player.m_localPlayer != null && (Controller.Local?.Active ?? false) && Controller.Local.Sim is Eldenheim.Sim.Player sp)
+            {
+                Vector3 b = Player.m_localPlayer.transform.position;
+                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} sim y {sp.Pos.Y:0.000} simx {sp.Pos.X:0.000} {sp.State} {(sp.State == Eldenheim.Sim.StateKind.Act ? sp.Act.Id.ToString() : "")} speed {sp.Speed:0.0} slip {Controller.Local.Level?.Slippage:0.00} n.y {Controller.Local.Level?.GroundNormal.y:0.00} miss {Controller.Local.LastMiss.x:0.000},{Controller.Local.LastMiss.y:0.000},{Controller.Local.LastMiss.z:0.000} hips {Controller.Local.HipsY:0.000} aim {sp.AimPitch * Mathf.Rad2Deg:0} shown {Controller.Local.AimShown * Mathf.Rad2Deg:0.00} chest {Controller.Local.ChestPitch:0.00} clip {Controller.Local.ShownClip} {Controller.Local.FeetDebug} {Controller.Local.HandDebug}");
             }
             if (_smooth != null && Player.m_localPlayer != null && Time.deltaTime > 0f)
             {
@@ -390,6 +397,12 @@ namespace Eldenheim
                     // vanilla: Valheim's own movement numbers for this player, and its skills.
                     Plugin.Report($"vanilla: walk {vp.m_walkSpeed} jog {vp.m_speed} run {vp.m_runSpeed} crouch {vp.m_crouchSpeed} jumpForce {vp.m_jumpForce} fwd {vp.m_jumpForceForward} " +
                                   $"gravity {Physics.gravity.y} drag {vp.GetComponent<Rigidbody>().linearDamping} run skill {vp.GetSkillFactor(Skills.SkillType.Run):0.00} jump skill {vp.GetSkillFactor(Skills.SkillType.Jump):0.00}");
+                    break;
+                case "vdrive":
+                    // vdrive X Z SECS [run]: Valheim's own movement input (with Eldenheim off), relative to the look.
+                    VDrive = new Vector3(F(a[1]), 0f, F(a[2]));
+                    VDriveRun = a.Length > 4 && a[4] == "run";
+                    Timers.Add((Time.time + F(a[3]), Time.frameCount + 3, () => VDrive = null));
                     break;
                 case "vjump":
                     // vjump: Valheim's own jump (run with Eldenheim off: setting Enabled false).

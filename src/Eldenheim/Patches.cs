@@ -176,6 +176,12 @@ namespace Eldenheim
         {
             if (Owning(__instance) == null)
             {
+                if (Commands.VDrive.HasValue && __instance == Player.m_localPlayer)
+                {
+                    // Test harness (vdrive): Valheim's own movement, driven.
+                    movedir = Commands.VDrive.Value;
+                    run = Commands.VDriveRun;
+                }
                 return;
             }
             // Every combat and movement button is Eldenheim's while it owns the player.
