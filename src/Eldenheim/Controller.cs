@@ -477,7 +477,6 @@ namespace Eldenheim
             LandFollowUps = true,
             LandInPlace = true,
             ResumeAirAttacks = true,
-            LandingsPlayOut = true,
             ReverseBackstepFrames = 4f,
             BackstepAttackTurn = 1800f,
         };
