@@ -495,10 +495,15 @@ namespace Eldenheim
             Sim.Speed = Mathf.Min(new Vector3(moving.x, 0f, moving.z).magnitude, ErData.SPRINT_SPEED);
             _level.Self = _body;
             _carry = Vector3.zero;
-            // Wading out of deep water with the run key down sprints on (a held key sprints, it never dodges).
-            if (_vp.InWater())
+            // Wading out of deep water, or drawing a weapon while running on Valheim's movement
+            // (ValheimEmptyHanded), with the run key down sprints on (a held key sprints, it never dodges).
+            if (_vp.InWater() || _vp.IsRunning())
             {
                 _bindings.IgnoreHeld("Dodge", "Sprint");
+                if (_vp.IsRunning())
+                {
+                    Sim.SprintOn();
+                }
             }
             else
             {

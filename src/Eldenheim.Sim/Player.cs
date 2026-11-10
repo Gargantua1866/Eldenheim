@@ -380,6 +380,14 @@ namespace Eldenheim.Sim
             }
         }
 
+        /// <summary>Eldenheim: taking over from the host's own running with the button held: sprinting at once, never a dodge on its release.</summary>
+        public void SprintOn()
+        {
+            _dodgeHold = Consts.SPRINT_HOLD_FRAMES;
+            _dodgeArmed = false;
+            Sprinting = true;
+        }
+
         public bool GuardUp() => Guarding && _guardT >= Consts.GUARD_RAISE_FRAMES;
         /// <summary>Guarding through an attack's own window: a blocked hit doesn't stop it.</summary>
         public bool AttackGuard()
