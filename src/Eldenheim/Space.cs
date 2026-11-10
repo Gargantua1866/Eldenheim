@@ -62,8 +62,8 @@ namespace Eldenheim
         private float _slippage;
         /// <summary>How fast the slide fades off steep ground (share per second): about a quarter of a second.</summary>
         private const float SlideFade = 4f;
-        /// <summary>Valheim's cap on climbing (Character.UpdateWalking: currentVel.y at most 3 m/s).</summary>
-        private const float MaxClimb = 3f;
+        /// <summary>Valheim's cap on climbing (Character.UpdateWalking: currentVel.y at most 3 m/s; measured 3.13 sprinting up 56°).</summary>
+        private const float MaxClimb = 3.13f;
         private readonly RaycastHit[] _hits = new RaycastHit[16];
         private static readonly System.Collections.Generic.Dictionary<Collider, bool> LadderOf = new System.Collections.Generic.Dictionary<Collider, bool>();
 
@@ -188,11 +188,15 @@ namespace Eldenheim
             float x = pos.X + delta.X, z = pos.Z + delta.Z;
             if (onFoot)
             {
-                // Never climbing faster than Valheim lets a player (3 m/s), by the height this move gains.
-                float rise = Ground(x, z, out _, out _) - underY, most = MaxClimb * Consts.DT;
-                if (rise > most && rise <= Consts.STEP_HEIGHT)
+                // Never climbing faster than Valheim lets a player, by the slope under the body's
+                // middle (a step's flat tread never slows the walk onto it).
+                Vector3 dir = Space.DirToUnity(delta);
+                dir.y = 0f;
+                float flat = dir.magnitude, grade = flat > 1e-5f ? -(underNormal.x * dir.x + underNormal.z * dir.z) / (flat * Mathf.Max(underNormal.y, 0.1f)) : 0f;
+                float climb = flat * grade / Consts.DT;
+                if (climb > MaxClimb)
                 {
-                    float keep = most / rise;
+                    float keep = MaxClimb / climb;
                     x = pos.X + delta.X * keep;
                     z = pos.Z + delta.Z * keep;
                 }

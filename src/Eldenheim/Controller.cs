@@ -1853,7 +1853,9 @@ namespace Eldenheim
             _groundRate += (change / Consts.DT - _groundRate) * (1f - Mathf.Exp(-10f * Consts.DT));
             float y = _groundY + _groundRate * Consts.DT;
             y += (simY - y) * (1f - Mathf.Exp(-12f * Consts.DT));
-            return _groundY = Mathf.Clamp(y, simY - 0.12f, simY + 0.12f);
+            // Never under the ground, and on steep ground a little clear of it, where its contact drags the capsule back down the slope.
+            float lift = _level != null ? 0.03f * Mathf.InverseLerp(0.9f, 0.7f, _level.GroundNormal.y) : 0f;
+            return _groundY = Mathf.Clamp(y, simY + lift, simY + 0.12f);
         }
 
         /// <summary>Test harness (ytrace): the ground model and how far PhysX last held the body from where it was sent.</summary>
