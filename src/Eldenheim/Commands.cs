@@ -34,6 +34,65 @@ namespace Eldenheim
         private static float _probeWorst;
         private static string _probeRun;
         private static List<float> _smooth;
+        private static List<string> _ytrace;
+        private static Dictionary<string, float> _cape;
+        private static int _capeFrames, _capeOver;
+        private static Mesh _capeMesh;
+
+        /// <summary>capeprobe: the cape's furthest drawn vertex in front of the chest this frame.</summary>
+        private static void SampleCape(Player vp)
+        {
+            Transform chest = vp.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Spine2");
+            if (chest == null)
+            {
+                return;
+            }
+            Vector3 fwd = vp.transform.forward;
+            float most = float.MinValue;
+            foreach (MagicaCloth2.MagicaCloth mc in vp.GetComponentsInChildren<MagicaCloth2.MagicaCloth>())
+            {
+                foreach (Renderer r in mc.SerializeData.sourceRenderers)
+                {
+                    if (r is SkinnedMeshRenderer smr)
+                    {
+                        if (_capeMesh == null)
+                        {
+                            _capeMesh = new Mesh();
+                        }
+                        smr.BakeMesh(_capeMesh, true);
+                        // Baked with the renderer's scale: only its place and turn remain.
+                        Matrix4x4 m = Matrix4x4.TRS(smr.transform.position, smr.transform.rotation, Vector3.one);
+                        foreach (Vector3 v in _capeMesh.vertices)
+                        {
+                            most = Mathf.Max(most, Vector3.Dot(m.MultiplyPoint3x4(v) - chest.position, fwd));
+                        }
+                    }
+                    else if (r is MeshRenderer mr && mr.GetComponent<MeshFilter>()?.sharedMesh is Mesh mesh)
+                    {
+                        Matrix4x4 m = mr.transform.localToWorldMatrix;
+                        foreach (Vector3 v in mesh.vertices)
+                        {
+                            most = Mathf.Max(most, Vector3.Dot(m.MultiplyPoint3x4(v) - chest.position, fwd));
+                        }
+                    }
+                }
+            }
+            if (most == float.MinValue)
+            {
+                return;
+            }
+            Controller c = Controller.Local;
+            string at = c?.Sim == null ? "?" : c.Sim.State == Eldenheim.Sim.StateKind.Act ? $"{c.Sim.Act.Id} f{c.Sim.Act.F:0}" : c.Sim.State.ToString();
+            _capeFrames++;
+            if (most > 0.15f)
+            {
+                _capeOver++;
+            }
+            if (!_cape.TryGetValue(at, out float was) || most > was)
+            {
+                _cape[at] = most;
+            }
+        }
         private static Vector3 _smoothLast;
 
         public static void Poll(string path)
@@ -69,6 +128,15 @@ namespace Eldenheim
             if (_deform != null)
             {
                 SampleDeform();
+            }
+            if (_cape != null && Player.m_localPlayer != null)
+            {
+                SampleCape(Player.m_localPlayer);
+            }
+            if (_ytrace != null && Player.m_localPlayer != null && Controller.Local?.Sim is Eldenheim.Sim.Player sp)
+            {
+                Vector3 b = Player.m_localPlayer.transform.position;
+                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} sim y {sp.Pos.Y:0.000} {sp.State} {(sp.State == Eldenheim.Sim.StateKind.Act ? sp.Act.Id.ToString() : "")} speed {sp.Speed:0.0} slip {Controller.Local.Level?.Slippage:0.00} n.y {Controller.Local.Level?.GroundNormal.y:0.00} miss {Controller.Local.LastMiss.y:0.000},{Controller.Local.LastMiss.z:0.000} hips {Controller.Local.HipsY:0.000} aim {sp.AimPitch * Mathf.Rad2Deg:0}");
             }
             if (_smooth != null && Player.m_localPlayer != null && Time.deltaTime > 0f)
             {
@@ -285,6 +353,139 @@ namespace Eldenheim
                     Plugin.Report("inv: " + string.Join(", ", vp.GetInventory().GetAllItems().Select(i =>
                         $"{i.m_dropPrefab?.name}{(i.m_equipped ? "*" : "")}{(i.m_customData.ContainsKey(Hands.LeftMark) ? "(L)" : "")}@{i.m_gridPos.x},{i.m_gridPos.y}")));
                     break;
+                case "cloth":
+                    // cloth: each cloth on the player (its settings as JSON, cut) and the colliders it meets.
+                    foreach (MagicaCloth2.MagicaCloth mc in vp.GetComponentsInChildren<MagicaCloth2.MagicaCloth>(true))
+                    {
+                        var sd = mc.SerializeData;
+                        if (mc.Process != null && MagicaCloth2.MagicaManager.Team?.teamDataArray is var teams && teams != null && mc.Process.TeamId > 0 && mc.Process.TeamId < teams.Count)
+                        {
+                            var td = teams[mc.Process.TeamId];
+                            Plugin.Report($"cloth: {mc.name} team {mc.Process.TeamId}: runs as {td.updateMode} (set {td.originalUpdateMode}), this frame {td.updateCount} steps, frame time {td.frameDeltaTime:0.0000}");
+                        }
+                        string json = sd.ExportJson();
+                        Plugin.Report($"cloth: {mc.name} under {mc.transform.parent?.name} type {sd.clothType} roots {string.Join(",", sd.rootBones.Where(b => b != null).Select(b => b.name))} " +
+                                      $"mode {sd.colliderCollisionConstraint.mode} colliders " + string.Join("; ", sd.colliderCollisionConstraint.colliderList.Where(cc => cc != null)
+                                          .Select(cc => $"{cc.GetType().Name} on {cc.transform.name} size {cc.GetSize():F3} centre {cc.center:F3}")));
+                        File.WriteAllText(Path.Combine(Plugin.Dir, $"cloth-{vp.GetInventory().GetAllItems().FirstOrDefault(i => i.m_equipped && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shoulder)?.m_dropPrefab?.name}-{mc.name}.json"), json);
+                    }
+                    break;
+                case "capeprobe":
+                    // capeprobe start|stop: per frame, how far the cape's drawn vertices get in front of the chest
+                    // (along the body's facing, from the Spine2 bone), worst per action frame.
+                    if (a[1] == "start")
+                    {
+                        _cape = new Dictionary<string, float>();
+                        _capeFrames = 0;
+                        _capeOver = 0;
+                    }
+                    else if (_cape != null)
+                    {
+                        var worst = _cape.OrderByDescending(kv => kv.Value).Take(8).Select(kv => $"{kv.Key} {kv.Value:+0.00;-0.00}");
+                        Plugin.Report($"capeprobe: {_capeFrames} frames, {_capeOver} with the cape over 15 cm in front of the chest; worst: {string.Join(", ", worst)}");
+                        _cape = null;
+                    }
+                    break;
+                case "heal":
+                    vp.Heal(1000f);
+                    break;
+                case "ytrace":
+                    // ytrace start|stop: per rendered frame, the body's height and the sim's state (bounces on slopes).
+                    if (a[1] == "start")
+                    {
+                        _ytrace = new List<string>();
+                    }
+                    else if (_ytrace != null)
+                    {
+                        Plugin.Report("ytrace:\n" + string.Join("\n", _ytrace));
+                        _ytrace = null;
+                    }
+                    break;
+                case "ramp":
+                {
+                    // ramp DEG: a 12 m slope of DEG degrees (a box collider, drawn) rising ahead of the player from its feet.
+                    float deg = F(a[1]);
+                    // ramp DEG bumpy: a terrain-like mesh instead (1 m facets, heights off by up to 15 cm).
+                    if (a.Length > 2 && a[2] == "bumpy")
+                    {
+                        var rampGo = new GameObject("eh_test_ramp");
+                        rampGo.layer = LayerMask.NameToLayer("terrain");
+                        Vector3 f2 = vp.transform.forward;
+                        f2.y = 0f;
+                        f2.Normalize();
+                        Vector3 r2 = Vector3.Cross(Vector3.up, f2);
+                        Vector3 o = vp.transform.position + f2 * 1f;
+                        float tan = Mathf.Tan(F(a[1]) * Mathf.Deg2Rad);
+                        var rng = new System.Random(7);
+                        var verts = new List<Vector3>();
+                        var tris = new List<int>();
+                        const int W = 6, L = 13;
+                        for (int j = 0; j < L; j++)
+                        {
+                            for (int i = 0; i < W; i++)
+                            {
+                                float bump = j == 0 ? 0f : (float)(rng.NextDouble() * 0.3 - 0.15);
+                                verts.Add(o + r2 * (i - (W - 1) / 2f) + f2 * j + Vector3.up * (j * tan + bump));
+                            }
+                        }
+                        for (int j = 0; j < L - 1; j++)
+                        {
+                            for (int i = 0; i < W - 1; i++)
+                            {
+                                int v = j * W + i;
+                                tris.AddRange(new[] { v, v + W, v + 1, v + 1, v + W, v + W + 1 });
+                            }
+                        }
+                        var mesh = new Mesh { vertices = verts.ToArray(), triangles = tris.ToArray() };
+                        mesh.RecalculateNormals();
+                        rampGo.AddComponent<MeshFilter>().sharedMesh = mesh;
+                        rampGo.AddComponent<MeshCollider>().sharedMesh = mesh;
+                        Plugin.Report($"ramp: bumpy {a[1]}° from {o:F1}");
+                        break;
+                    }
+                    GameObject ramp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    ramp.name = "eh_test_ramp";
+                    ramp.layer = LayerMask.NameToLayer("static_solid");
+                    Vector3 fwd = vp.transform.forward;
+                    fwd.y = 0f;
+                    fwd.Normalize();
+                    Quaternion tilt = Quaternion.LookRotation(fwd) * Quaternion.Euler(-deg, 0f, 0f);
+                    ramp.transform.rotation = tilt;
+                    ramp.transform.localScale = new Vector3(4f, 1f, 12f);
+                    // The top face's near edge at the feet, 1 m ahead.
+                    Vector3 edge = vp.transform.position + fwd * 1f;
+                    ramp.transform.position = edge + tilt * new Vector3(0f, -0.5f, 6f);
+                    Plugin.Report($"ramp: {deg}° from {edge:F1} toward yaw {Quaternion.LookRotation(fwd).eulerAngles.y:0}");
+                    break;
+                }
+                case "steep":
+                {
+                    // steep R [MIN MAX]: ground within R m sloped MIN-MAX degrees (default 38-65: a slope that slides), nearest first.
+                    float r = a.Length > 1 ? F(a[1]) : 40f, lo = a.Length > 2 ? F(a[2]) : 38f, hi = a.Length > 3 ? F(a[3]) : 65f;
+                    var found = new List<(float d, string what)>();
+                    for (float x = -r; x <= r; x += 1f)
+                    {
+                        for (float z = -r; z <= r; z += 1f)
+                        {
+                            Vector3 at = vp.transform.position + new Vector3(x, 50f, z);
+                            if (Physics.Raycast(at, Vector3.down, out RaycastHit h, 120f, PhysicsLevel.GroundMask))
+                            {
+                                float deg = Mathf.Acos(Mathf.Clamp01(h.normal.y)) * Mathf.Rad2Deg;
+                                if (deg >= lo && deg <= hi)
+                                {
+                                    Vector3 down = Vector3.Cross(h.normal, Vector3.Cross(h.normal, Vector3.up));
+                                    found.Add((new Vector2(x, z).magnitude, $"{deg:0}° at {h.point:F1} on {h.collider.name}, uphill yaw {Quaternion.LookRotation(new Vector3(-down.x, 0f, -down.z)).eulerAngles.y:0}"));
+                                }
+                            }
+                        }
+                    }
+                    Plugin.Report($"steep: {found.Count} points; " + string.Join(" | ", found.OrderBy(f => f.d).Take(12).Select(f => f.what)));
+                    // Where they cluster (5 m cells, most first): a slope rather than a stray rock.
+                    Plugin.Report("steep cells: " + string.Join(" | ", found.Select(f => f.what)
+                        .GroupBy(w => { string[] q = w.Split('(', ')')[1].Split(','); return $"{Mathf.Round(F(q[0]) / 5f) * 5f},{Mathf.Round(F(q[2]) / 5f) * 5f}"; })
+                        .OrderByDescending(g => g.Count()).Take(10).Select(g => $"{g.Key} x{g.Count()} ({g.First()})")));
+                    break;
+                }
                 case "smooth":
                     // smooth start|stop: how evenly the player moves from one rendered frame to the next.
                     if (a[1] == "start")
@@ -375,6 +576,8 @@ namespace Eldenheim
                 case "tp":
                     vp.transform.position = new Vector3(F(a[1]), F(a[2]), F(a[3]));
                     vp.GetComponent<Rigidbody>().position = vp.transform.position;
+                    // Not a fall from the old height (Valheim's landing reads it).
+                    Traverse.Create(vp).Field("m_maxAirAltitude").SetValue(-10000f);
                     if (c.Sim != null)
                     {
                         c.Sim.Pos = Space.ToSim(vp.transform.position);
@@ -391,6 +594,9 @@ namespace Eldenheim
                 case "look":
                     // look DEG: turn the camera only (the body keeps its facing), e.g. to see the front.
                     vp.SetLookDir(Quaternion.Euler(F(a.Length > 2 ? a[2] : "10"), F(a[1]), 0f) * Vector3.forward);
+                    // The player's look is its mouse yaw and pitch, set again from them every frame.
+                    Traverse.Create(vp).Field("m_lookYaw").SetValue(Quaternion.Euler(0f, F(a[1]), 0f));
+                    Traverse.Create(vp).Field("m_lookPitch").SetValue(F(a.Length > 2 ? a[2] : "10"));
                     break;
                 case "shot":
                     // shot NAME: the game's own screenshot, this frame, to shots/NAME.png beside the DLL.
@@ -413,10 +619,10 @@ namespace Eldenheim
                     foreach (Character ch in Character.GetAllCharacters())
                     {
                         Vector3 to = ch.transform.position - vp.transform.position;
-                        if (ch != vp && to.magnitude < 15f)
+                        if (ch != vp && to.magnitude < (a.Length > 1 ? F(a[1]) : 15f))
                         {
                             Vector3 look = GameCamera.instance != null ? GameCamera.instance.transform.forward : vp.transform.forward;
-                            Plugin.Report($"near: {ch.name} {to.magnitude:0.0} m, dot {Vector3.Dot(to.normalized, look):0.00}, enemy {BaseAI.IsEnemy(vp, ch)}, dead {ch.IsDead()}, layer {LayerMask.LayerToName(ch.gameObject.layer)}");
+                            Plugin.Report($"near: {ch.name} {to.magnitude:0.0} m at {ch.transform.position:F1} height {ch.GetHeight():0.0}, dot {Vector3.Dot(to.normalized, look):0.00}, enemy {BaseAI.IsEnemy(vp, ch)}, dead {ch.IsDead()}, layer {LayerMask.LayerToName(ch.gameObject.layer)}");
                         }
                     }
                     Plugin.Report($"near: guard held? sim guarding {c.Sim?.Guarding} up {c.Sim?.GuardUp()} t {c.Sim?.GuardT} forced {(Bindings.Forced.TryGetValue("Guard", out bool g) && g)}");
@@ -585,6 +791,8 @@ namespace Eldenheim
                         case "HitboxDebug": Settings.HitboxDebug.Value = bool.Parse(a[2]); break;
                         case "ValheimIframes": Settings.ValheimIframes.Value = bool.Parse(a[2]); break;
                         case "IframeDebug": Settings.IframeDebug.Value = bool.Parse(a[2]); break;
+                        case "GuardTowardCamera": Settings.GuardTowardCamera.Value = bool.Parse(a[2]); break;
+                        case "ClothEveryFrame": Settings.ClothEveryFrame = bool.Parse(a[2]); break;
                         case "ArmsOutOfTorso": Settings.ArmsOutOfTorso = bool.Parse(a[2]); c.ArmPeak = 0f; break;
                         default: Plugin.Report($"setting: {a[1]} unknown"); break;
                     }

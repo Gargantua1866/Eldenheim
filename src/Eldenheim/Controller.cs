@@ -1740,6 +1740,11 @@ namespace Eldenheim
 
         // --- The physics step (Character.UpdateMotion is replaced by this) -------
 
+        /// <summary>Test harness (ytrace): the ground model and how far PhysX last held the body from where it was sent.</summary>
+        internal PhysicsLevel Level => _level;
+        internal Vector3 LastMiss;
+        internal float HipsY => _bodyY;
+
         public void FixedTick(float dt)
         {
             _clock += dt;
@@ -1762,6 +1767,7 @@ namespace Eldenheim
             // Collision is PhysX's: wherever the body fell short of where it
             // was sent, the sim is held back by as much.
             Vector3 miss = _body.position - _expected;
+            LastMiss = miss;
             if (miss.magnitude > 2f)
             {
                 // Teleported (or pushed far): start again from the body.
