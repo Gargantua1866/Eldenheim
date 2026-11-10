@@ -2901,7 +2901,13 @@ namespace Eldenheim
                 return 0f;
             }
             float most = Settings.FreeAimVertical.Value * Mathf.Deg2Rad;
-            return Mathf.Clamp(Mathf.Asin(Mathf.Clamp(_vp.GetLookDir().y, -1f, 1f)), -most, most);
+            float pitch = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(_vp.GetLookDir().y, -1f, 1f)), -most, most);
+            // Straightening up with the attack's own recovery: full until its last hit is over, none
+            // by the frame it can be left by moving (or its end), so the tilt fades as the swing ends.
+            ActionDef def = Sim.Act.Id.Def();
+            float from = def.Hits.Length > 0 ? def.Hits[def.Hits.Length - 1].To : 0f;
+            float to = def.CancelMove > from + 1f ? def.CancelMove : def.Total;
+            return pitch * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(from, to, Sim.Act.F)));
         }
 
         /// <summary>What lock-on can target: living enemies (and PvP players) in range.</summary>
