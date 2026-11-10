@@ -19,6 +19,7 @@ namespace Eldenheim
             new System.Collections.Generic.Dictionary<string, ConfigEntry<string>>();
 
         public static ConfigEntry<bool> EmptyHandGuard;
+        public static ConfigEntry<bool> ValheimEmptyHanded;
         public static ConfigEntry<bool> GuardTowardCamera;
         public static ConfigEntry<int> FreeAimVertical;
         public static ConfigEntry<bool> InstantJump;
@@ -211,6 +212,9 @@ namespace Eldenheim
             EmptyHandGuard = Bind(c, CONTROLS, "EmptyHandGuard", false, Controls(
                 "Off (Elden Ring): with nothing in the left hand, the guard button throws a left punch. " +
                 "On (Valheim-like): it guards with the right-hand weapon, held in both hands."), behaviour);
+            ValheimEmptyHanded = Bind(c, CONTROLS, "ValheimEmptyHanded", false, Controls(
+                "On: with nothing in either hand, Valheim's own movement, jumping, physics and animations take over (as with a tool or a bow). " +
+                "Off: bare hands are Elden Ring's fists (the BareHands moveset)."));
             GuardTowardCamera = Bind(c, CONTROLS, "GuardTowardCamera", false, Controls(
                 "Off (Elden Ring): guarding unlocked, the player turns the way it moves. On (Valheim-like): while guarding it faces the " +
                 "crosshair (the camera's way) and moves sideways and back as when locked on. Also for EmptyHandGuard's guard."));

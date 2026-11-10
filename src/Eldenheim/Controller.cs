@@ -439,6 +439,11 @@ namespace Eldenheim
                 why = valheim;
                 return false;
             }
+            if (Settings.ValheimEmptyHanded.Value && Right == null && Left == null)
+            {
+                why = "empty hands (ValheimEmptyHanded)";
+                return false;
+            }
             if (!Map(Right, Left, out _, out _, out _))
             {
                 why = "not an Elden Ring weapon";
@@ -1716,6 +1721,10 @@ namespace Eldenheim
         private void LateUpdate()
         {
             WritePose();
+            if (Active)
+            {
+                ChestPitch = MeasureChest();
+            }
             if (Settings.Enabled.Value)
             {
                 // Also while Valheim moves the player (a workbench): two sheathed weapons hang crossed, not one over the other.
@@ -1772,6 +1781,23 @@ namespace Eldenheim
         internal PhysicsLevel Level => _level;
         internal Vector3 LastMiss;
         internal float HipsY => _bodyY;
+        internal float AimShown => _chooser?.AimShown ?? 0f;
+        internal string ShownClip => _chooser?.Clip;
+        /// <summary>Test harness: the chest's pitch against the body (degrees, up positive).</summary>
+        internal float ChestPitch;
+
+        private float MeasureChest()
+        {
+            {
+                Transform chest = _retarget?.Hips != null ? _retarget.Hips.Find("Spine/Spine1/Spine2") : null;
+                if (chest == null)
+                {
+                    return 0f;
+                }
+                Vector3 up = transform.InverseTransformDirection(chest.up);
+                return Mathf.Atan2(-up.z, up.y) * Mathf.Rad2Deg;
+            }
+        }
 
         public void FixedTick(float dt)
         {
