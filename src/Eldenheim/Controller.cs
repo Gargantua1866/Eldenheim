@@ -54,6 +54,9 @@ namespace Eldenheim
         private float _clock;
         private bool _recenter;
         private float _bodyY;
+        // The drawn height's easing over a step (Pose), and the sim height and place it was last eased from.
+        private float _stepEase, _rootY, _slopeRate;
+        private Vector3 _rootAt;
         private float _grip;
         private bool _counterSounded;
         // The body follows the sim a tick behind, interpolated, so it moves
@@ -3164,14 +3167,36 @@ namespace Eldenheim
             float bodyY = transform.position.y;
             float simY = Mathf.Lerp(_tickFrom.y, _tickTo.y, Mathf.Clamp01(alpha));
             float rootY = planted && Mathf.Abs(simY - bodyY) < 0.5f ? simY : bodyY;
+            Vector3 simAt = Vector3.Lerp(_tickFrom, _tickTo, Mathf.Clamp01(alpha));
+            float moved = new Vector2(simAt.x - _rootAt.x, simAt.z - _rootAt.z).magnitude;
             if (!planted || Mathf.Abs(rootY - _bodyY) > 1f)
             {
                 _bodyY = rootY;
+                _stepEase = _slopeRate = 0f;
             }
             else
             {
-                _bodyY += (rootY - _bodyY) * (1f - Mathf.Exp(-16f * dt));
+                // A step (more height than a slope of ~50° gives for how far the
+                // body went) eases over as before. On a slope the drawn height
+                // also runs on at the slope's own smoothed rate: easing alone left
+                // it lagging 0.1-0.3 m behind, more or less with the speed (a bob),
+                // and following the sim as it is showed its cast's jitter on bumps.
+                float change = rootY - _rootY;
+                if (Mathf.Abs(change) > 0.05f + 1.2f * moved)
+                {
+                    _stepEase -= change;
+                }
+                else if (dt > 1e-4f)
+                {
+                    _slopeRate += (change / dt - _slopeRate) * (1f - Mathf.Exp(-10f * dt));
+                }
+                _stepEase *= Mathf.Exp(-16f * dt);
+                float goal = rootY + _stepEase;
+                _bodyY += _slopeRate * dt;
+                _bodyY += (goal - _bodyY) * (1f - Mathf.Exp(-12f * dt));
             }
+            _rootY = rootY;
+            _rootAt = simAt;
             hips.y += _bodyY - bodyY;
             _retarget.PlaceFeet(_local, ref hips, charPoint =>
             {

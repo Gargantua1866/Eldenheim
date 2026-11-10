@@ -60,6 +60,8 @@ namespace Eldenheim
         /// <summary>A ladder's rungs (the wood ladder's 0.66 m steps) are walked up whole; the drawn body eases over them.</summary>
         private const float LadderStep = 0.7f;
         private float _slippage;
+        /// <summary>How fast the slide fades off steep ground (share per second): about a quarter of a second.</summary>
+        private const float SlideFade = 4f;
         private readonly RaycastHit[] _hits = new RaycastHit[16];
         private static readonly System.Collections.Generic.Dictionary<Collider, bool> LadderOf = new System.Collections.Generic.Dictionary<Collider, bool>();
 
@@ -165,7 +167,11 @@ namespace Eldenheim
                 OnSteep = ground.y < SlideY;
                 delta *= SlopeFactor(ground, delta);
                 bool moving = delta.X * delta.X + delta.Z * delta.Z > 1e-8f;
-                _slippage = ground.y < SlideY && !(NoSlide && moving) ? Mathf.MoveTowards(_slippage, 1f, Consts.DT) : 0f;
+                // Off steep ground the slide fades out (Valheim drops it at once, but its
+                // body's momentum carries on): on bumpy ground either side of 38° the speed
+                // down a slope jumped between the slide's and the walk's.
+                _slippage = NoSlide && moving ? 0f
+                    : ground.y < SlideY ? Mathf.MoveTowards(_slippage, 1f, Consts.DT) : Mathf.MoveTowards(_slippage, 0f, SlideFade * Consts.DT);
                 if (_slippage > 0f)
                 {
                     // Valheim's slide: 5 m/s along Cross(n, Cross(n, up)), the way down the slope.
