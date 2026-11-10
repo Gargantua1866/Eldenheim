@@ -150,20 +150,24 @@ namespace Eldenheim
         private static void PhysicsStep() => Controller.BeforePhysicsStep();
 
         /// <summary>
-        /// A player's cloth that follows the animator's timing (the deer hide cape:
-        /// AnimatorLinkage) simulates only on frames with a physics step, the
-        /// player's animator being Fixed. Eldenheim poses the body every rendered
-        /// frame, so in a fast swing the torso passed through the cape left behind
-        /// in between: it simulates every frame instead, as the other capes do.
+        /// Elden Ring's swings and spins are much faster than Valheim's, and they
+        /// threw a player's cape round the body and over the shoulders onto the
+        /// chest: each cloth particle is kept within its own max distance (Valheim
+        /// sets 0.3 m and leaves it off) of where the skinned cape would hang.
+        /// And a cloth that follows the animator's timing (the deer hide:
+        /// AnimatorLinkage) stepped only on frames with a physics step, the
+        /// player's animator being Fixed, while Eldenheim poses the body every
+        /// frame: it simulates every frame instead, as the other capes do.
         /// </summary>
         private static void SetupCloth(VisEquipment __instance, GameObject item)
         {
-            if (!Settings.Enabled.Value || !Settings.ClothEveryFrame || item == null || !__instance.m_isPlayer)
+            if (!Settings.Enabled.Value || !Settings.CapeFix || item == null || !__instance.m_isPlayer)
             {
                 return;
             }
             foreach (MagicaCloth2.MagicaCloth cloth in item.GetComponentsInChildren<MagicaCloth2.MagicaCloth>(true))
             {
+                cloth.SerializeData.motionConstraint.useMaxDistance = true;
                 if (cloth.SerializeData.updateMode == MagicaCloth2.ClothUpdateMode.AnimatorLinkage)
                 {
                     cloth.SerializeData.updateMode = MagicaCloth2.ClothUpdateMode.Normal;
