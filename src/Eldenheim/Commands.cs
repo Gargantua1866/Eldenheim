@@ -152,7 +152,7 @@ namespace Eldenheim
             if (_ytrace != null && Player.m_localPlayer != null && Controller.Local?.Sim is Eldenheim.Sim.Player sp)
             {
                 Vector3 b = Player.m_localPlayer.transform.position;
-                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} sim y {sp.Pos.Y:0.000} {sp.State} {(sp.State == Eldenheim.Sim.StateKind.Act ? sp.Act.Id.ToString() : "")} speed {sp.Speed:0.0} slip {Controller.Local.Level?.Slippage:0.00} n.y {Controller.Local.Level?.GroundNormal.y:0.00} miss {Controller.Local.LastMiss.y:0.000},{Controller.Local.LastMiss.z:0.000} hips {Controller.Local.HipsY:0.000} aim {sp.AimPitch * Mathf.Rad2Deg:0} shown {Controller.Local.AimShown * Mathf.Rad2Deg:0.00} chest {Controller.Local.ChestPitch:0.00} clip {Controller.Local.ShownClip} {Controller.Local.FeetDebug}");
+                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} sim y {sp.Pos.Y:0.000} {sp.State} {(sp.State == Eldenheim.Sim.StateKind.Act ? sp.Act.Id.ToString() : "")} speed {sp.Speed:0.0} slip {Controller.Local.Level?.Slippage:0.00} n.y {Controller.Local.Level?.GroundNormal.y:0.00} miss {Controller.Local.LastMiss.y:0.000},{Controller.Local.LastMiss.z:0.000} hips {Controller.Local.HipsY:0.000} aim {sp.AimPitch * Mathf.Rad2Deg:0} shown {Controller.Local.AimShown * Mathf.Rad2Deg:0.00} chest {Controller.Local.ChestPitch:0.00} clip {Controller.Local.ShownClip} {Controller.Local.FeetDebug} {Controller.Local.HandDebug}");
             }
             if (_smooth != null && Player.m_localPlayer != null && Time.deltaTime > 0f)
             {
