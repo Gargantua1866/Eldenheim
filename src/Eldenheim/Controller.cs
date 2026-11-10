@@ -2495,10 +2495,19 @@ namespace Eldenheim
                 ItemDrop.ItemData item = (Sim.Grip == Grip.TwoHandLeft ? Left : Right) ?? Unarmed;
                 UseAttack($"jump attack ({item?.m_shared.m_name})", AttackCost(air.Moveset, item, air.Def.Stamina));
             }
-            // Landing from it: the air attack paid for the swing the landing carries on.
-            if (wasAir || Sim.State != StateKind.Act || !Sim.Act.Id.IsAttack)
+            if (Sim.State != StateKind.Act || !Sim.Act.Id.IsAttack)
             {
                 return;
+            }
+            // Landing from it: the air attack paid for the swing the landing carries on; a blow
+            // of the landing's own that it starts at (a long fall: Act.NewStrike) is due now.
+            if (wasAir)
+            {
+                if (!Sim.Act.NewStrike)
+                {
+                    return;
+                }
+                fromF = Sim.Act.F - 0.01f;
             }
             ActionId id = Sim.Act.Id;
             Hit[] hits = id.Def().Hits;

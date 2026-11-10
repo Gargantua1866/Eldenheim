@@ -68,6 +68,8 @@ namespace Eldenheim.Sim
         public float F;
         public uint Landed;
         public uint Paid;
+        /// <summary>A jump attack's landing whose strike is a blow of its own, not the air swing carried on (Land).</summary>
+        public bool NewStrike;
     }
 
     public struct Swap
@@ -1220,7 +1222,22 @@ namespace Eldenheim.Sim
                     landing = AttackKind.JumpLightLand;
                     shortKind = AttackKind.JumpLightLandShort;
                 }
+                ActionDef full = at.Moveset.Attack(landing);
                 bool finished = at.F >= at.Def.To;
+                // Eldenheim: the landing's hits after the air swing (Milady's second jump-heavy blow,
+                // the power stance's second chop) are never swept in the air: they strike on landing.
+                int after = -1;
+                if (LandInPlace && full != null)
+                {
+                    for (int i = 0; i < full.Hits.Length && after < 0; i++)
+                    {
+                        if (full.Hits[i].From >= at.Def.To - 0.5f)
+                        {
+                            after = i;
+                        }
+                    }
+                }
+                finished &= after < 0;
                 AttackKind kind = finished && at.Moveset.Has(shortKind) ? shortKind : landing;
                 ActionDef def = at.Moveset.Attack(kind);
                 if (def == null)
@@ -1234,6 +1251,27 @@ namespace Eldenheim.Sim
                     Act.F = finished ? 0f : LandInPlace ? at.F : F.Min(at.F, def.FirstHit?.From ?? 0f);
                     Act.Paid = uint.MaxValue;
                     Act.Landed = finished ? uint.MaxValue : at.HitDone ? (LandFollowUps ? SwingHits(def) : uint.MaxValue) : 0u;
+                    Hit first = def.FirstHit;
+                    // Eldenheim: an air swing that outlasts the landing's own strike (Milady's
+                    // spinning jump heavy, 17-40, lands in a slam at 20-23) is a different blow:
+                    // landing in place past it skipped the slam, so the landing starts at it.
+                    if (after >= 0)
+                    {
+                        // Landing after that blow's start (a long fall): back to it, the air swing's hits done.
+                        Hit next = def.Hits[after];
+                        if (at.F > next.From)
+                        {
+                            Act.F = next.From;
+                            Act.Landed = after >= 32 ? uint.MaxValue : (1u << after) - 1u;
+                            Act.NewStrike = true;
+                        }
+                    }
+                    else if (LandInPlace && !finished && first != null && at.Def.To > first.To + 2f && at.F >= first.From)
+                    {
+                        Act.F = at.F < first.To ? at.F : first.From;
+                        Act.Landed = 0u;
+                        Act.NewStrike = true;
+                    }
                 }
             }
             else if (fall >= HeavyLandingFall || thrown && fall >= MinLandingFall)

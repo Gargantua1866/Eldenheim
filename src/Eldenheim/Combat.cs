@@ -920,7 +920,7 @@ namespace Eldenheim
             float f = air ? p.AirAttackState.Value.F : acting ? p.Act.F : -1f;
             bool same = air == _lastAir && (air || acting && act == _lastAct) && f >= _lastF;
             // A jump attack's landing carries on its swing: its first window's sound has played.
-            bool landing = _lastAir && !air && acting && act.IsAttack && SimPlayer.IsJumpLanding(act.Kind);
+            bool landing = _lastAir && !air && acting && act.IsAttack && SimPlayer.IsJumpLanding(act.Kind) && !p.Act.NewStrike;
             // That landing gone over an edge mid-swing (ResumeAirAttacks): the same swing, back in the air.
             bool resumed = air && p.AirAttackState.Value.Resumed && !_lastAir && _lastAct.IsAttack && SimPlayer.IsJumpLanding(_lastAct.Kind);
             if (resumed)
