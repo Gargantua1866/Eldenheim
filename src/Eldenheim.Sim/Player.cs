@@ -458,10 +458,22 @@ namespace Eldenheim.Sim
                 {
                     return false;
                 }
+                if (AimPitch != 0f)
+                {
+                    a = Pitched(a);
+                    b = Pitched(b);
+                }
                 into.SweepA[i] = Pos + left * a.X + Vec3.UnitY * a.Y + forward * a.Z;
                 into.SweepB[i] = Pos + left * b.X + Vec3.UnitY * b.Y + forward * b.Z;
             }
             return true;
+        }
+
+        /// <summary>A blade point (left, up, forward from the feet) tilted by AimPitch about the hips.</summary>
+        private Vec3 Pitched(Vec3 v)
+        {
+            float c = F.Cos(AimPitch), sn = F.Sin(AimPitch), y = v.Y - AIM_PIVOT;
+            return new Vec3(v.X, AIM_PIVOT + y * c + v.Z * sn, v.Z * c - y * sn);
         }
 
         /// <summary>Index of the hit whose window is open and has not connected yet, or -1.</summary>

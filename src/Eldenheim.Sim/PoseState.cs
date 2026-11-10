@@ -56,6 +56,8 @@ namespace Eldenheim.Sim
                     w.Write((byte)s.Left);
                     w.Write(s.Applied);
                 }
+                // Last, so a build without it still reads the rest.
+                w.Write(p.AimPitch);
             }
             return m.ToArray();
         }
@@ -104,6 +106,7 @@ namespace Eldenheim.Sim
                             Weapon = r.ReadByte(), Left = r.ReadByte(), Applied = r.ReadBoolean(),
                         };
                     }
+                    float aim = r.BaseStream.Position + 4 <= r.BaseStream.Length ? r.ReadSingle() : 0f;
                     if (weapon >= ErData.Weapons.Length || left >= ErData.Weapons.Length)
                     {
                         return false;
@@ -128,6 +131,7 @@ namespace Eldenheim.Sim
                     p.HitStop = hitStop;
                     p.AirAttackState = air;
                     p.SwapState = swap;
+                    p.AimPitch = aim;
                     return true;
                 }
             }

@@ -408,6 +408,7 @@ namespace Eldenheim.Anim
 
             _sprintW = Mathf.Clamp01(_sprintW + (p.Sprinting && grounded ? step : -step) * 0.5f);
             Unlean(1f - Settings.SprintLean.Value / 100f, _sprintW);
+            Aim(p.AimPitch);
 
             // The body's animations leave the fingers open: the grip is the
             // one in the stance's idle, carried on each hand's weapon bone.
@@ -566,18 +567,7 @@ namespace Eldenheim.Anim
             {
                 return;
             }
-            if (_pelvis == -2)
-            {
-                _pelvis = _clips.Bone("Pelvis");
-                _head = _clips.Bone("Head");
-                _upper = new bool[_clips.Bones.Length];
-                for (int i = 0; i < _upper.Length; i++)
-                {
-                    string n = _clips.Bones[i];
-                    _upper[i] = n != "Pelvis" && n != "RootPos" && n != "Master" && n != "RootRotY" && n != "RootRotXZ"
-                                && !n.Contains("Thigh") && !n.Contains("Calf") && !n.Contains("Foot") && !n.Contains("Toe");
-                }
-            }
+            UpperBones();
             if (_pelvis < 0 || _head < 0)
             {
                 return;
@@ -596,6 +586,49 @@ namespace Eldenheim.Anim
                 {
                     Shown.Rot[i] = fix * Shown.Rot[i];
                     Shown.Pos[i] = pivot + fix * (Shown.Pos[i] - pivot);
+                }
+            }
+        }
+
+        /// <summary>The pelvis, the head, and which bones are the upper body (all but the legs and root).</summary>
+        private void UpperBones()
+        {
+            if (_pelvis != -2)
+            {
+                return;
+            }
+            _pelvis = _clips.Bone("Pelvis");
+            _head = _clips.Bone("Head");
+            _upper = new bool[_clips.Bones.Length];
+            for (int i = 0; i < _upper.Length; i++)
+            {
+                string n = _clips.Bones[i];
+                _upper[i] = n != "Pelvis" && n != "RootPos" && n != "Master" && n != "RootRotY" && n != "RootRotXZ"
+                            && !n.Contains("Thigh") && !n.Contains("Calf") && !n.Contains("Foot") && !n.Contains("Toe");
+            }
+        }
+
+        /// <summary>The sim's AimPitch (free aim): the upper body tilted up or down about the hips, as its blade path is.</summary>
+        private void Aim(float pitch)
+        {
+            if (Mathf.Abs(pitch) < 1e-4f)
+            {
+                return;
+            }
+            UpperBones();
+            if (_pelvis < 0)
+            {
+                return;
+            }
+            Vector3 pivot = Shown.Pos[_pelvis];
+            // Character space: +z forward, +y up.
+            Quaternion tilt = Quaternion.FromToRotation(Vector3.forward, new Vector3(0f, Mathf.Sin(pitch), Mathf.Cos(pitch)));
+            for (int i = 0; i < _upper.Length; i++)
+            {
+                if (_upper[i])
+                {
+                    Shown.Rot[i] = tilt * Shown.Rot[i];
+                    Shown.Pos[i] = pivot + tilt * (Shown.Pos[i] - pivot);
                 }
             }
         }

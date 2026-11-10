@@ -19,6 +19,7 @@ namespace Eldenheim
             new System.Collections.Generic.Dictionary<string, ConfigEntry<string>>();
 
         public static ConfigEntry<bool> EmptyHandGuard;
+        public static ConfigEntry<bool> GuardTowardCamera;
         public static ConfigEntry<bool> InstantJump;
         public static ConfigEntry<bool> LeftJoystickInventory;
         public static ConfigEntry<bool> DodgeInInventory;
@@ -212,6 +213,9 @@ namespace Eldenheim
             EmptyHandGuard = Bind(c, CONTROLS, "EmptyHandGuard", false, Controls(
                 "Off (Elden Ring): with nothing in the left hand, the guard button throws a left punch. " +
                 "On (Valheim-like): it guards with the right-hand weapon, held in both hands."), behaviour);
+            GuardTowardCamera = Bind(c, CONTROLS, "GuardTowardCamera", false, Controls(
+                "Off (Elden Ring): guarding unlocked, the player turns the way it moves. On (Valheim-like): while guarding it faces the " +
+                "crosshair (the camera's way) and moves sideways and back as when locked on. Also for EmptyHandGuard's guard."));
             InstantJump = Bind(c, CONTROLS, "InstantJump", true, Controls(
                 "Off (Elden Ring): a jump crouches before it leaves the ground. On (Valheim-like): it leaves the ground at once."));
             LockOnRange = Bind(c, CONTROLS, "LockOnRange", 30, Controls(

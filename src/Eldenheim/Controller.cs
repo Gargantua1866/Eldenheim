@@ -1932,7 +1932,8 @@ namespace Eldenheim
             }
             AirAndSkills(inp);
             Character aim = LockTarget != null ? LockTarget : AutoTarget(inp);
-            Vec3? target = aim != null ? Space.ToSim(aim.transform.position) : ThrowFacing();
+            Vec3? target = aim != null ? Space.ToSim(aim.transform.position) : ThrowFacing() ?? GuardFacing(inp);
+            Sim.AimPitch = FreeAim(aim);
             bool wasActing = Sim.State == StateKind.Act;
             ActionId wasAct = Sim.Act.Id;
             float wasF = Sim.Act.F;
@@ -2787,6 +2788,44 @@ namespace Eldenheim
             Vector3 way = GameCamera.instance.transform.forward;
             way.y = 0f;
             return way.sqrMagnitude > 1e-4f ? Space.ToSim(transform.position + way.normalized * 20f) : (Vec3?)null;
+        }
+
+        /// <summary>
+        /// GuardTowardCamera, unlocked: while the guard is up the body faces the
+        /// camera's way and moves strafing, as when locked on (EmptyHandGuard's
+        /// two-handed guard too).
+        /// </summary>
+        private Vec3? GuardFacing(Input inp)
+        {
+            if (!Settings.GuardTowardCamera.Value || !inp.Guard.Held || !Sim.Guarding || Sim.State != StateKind.Ground || GameCamera.instance == null)
+            {
+                return null;
+            }
+            Vector3 way = GameCamera.instance.transform.forward;
+            way.y = 0f;
+            return way.sqrMagnitude > 1e-4f ? Space.ToSim(transform.position + way.normalized * 20f) : (Vec3?)null;
+        }
+
+        /// <summary>Elden Ring's free aim: how far an unlocked attack tilts up or down (ESTIMATE, not read from the game).</summary>
+        private const float AIM_PITCH_MAX = 30f * Mathf.Deg2Rad;
+        /// <summary>How fast the tilt follows the camera (rad/s).</summary>
+        private const float AIM_PITCH_RATE = 4f;
+
+        /// <summary>
+        /// Unlocked (and with no Auto Target), a ground attack aims up or down
+        /// the way the camera looks, within AIM_PITCH_MAX: the blade path and the
+        /// upper body tilt about the hips. Back to level outside attacks.
+        /// </summary>
+        private float FreeAim(Character aim)
+        {
+            bool attacking = Sim.State == StateKind.Act && Sim.Act.Id.IsAttack && !SimPlayer.IsJumpLanding(Sim.Act.Id.Kind) && !Sim.AirAttackState.HasValue;
+            float goal = 0f;
+            if (attacking && aim == null)
+            {
+                float look = Mathf.Asin(Mathf.Clamp(_vp.GetLookDir().y, -1f, 1f));
+                goal = Mathf.Clamp(look, -AIM_PITCH_MAX, AIM_PITCH_MAX);
+            }
+            return Mathf.MoveTowards(Sim.AimPitch, goal, AIM_PITCH_RATE * Consts.DT);
         }
 
         /// <summary>What lock-on can target: living enemies (and PvP players) in range.</summary>
