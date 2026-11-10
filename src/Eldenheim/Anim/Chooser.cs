@@ -45,7 +45,7 @@ namespace Eldenheim.Anim
         public bool Looped { get; private set; }
         public readonly ErPose Shown;
 
-        private readonly ErPose _from, _target, _layer, _base;
+        private readonly ErPose _from, _target, _layer, _base, _blended;
         private bool _hasShown;
         private float _fade, _fadeLen;
         private float _phase, _guard, _carry, _swap;
@@ -64,6 +64,7 @@ namespace Eldenheim.Anim
             _target = new ErPose(n);
             _layer = new ErPose(n);
             _base = new ErPose(n);
+            _blended = new ErPose(n);
             _chest = clips.Bone("Spine2");
             _lWeapon = clips.Bone("L_Weapon");
             _rWeapon = clips.Bone("R_Weapon");
@@ -317,7 +318,10 @@ namespace Eldenheim.Anim
             if (name != Clip)
             {
                 Clip = name;
-                _from.CopyFrom(Shown);
+                // From the clips' own blend, not Shown: the layers, the sprint's unlean and
+                // the free aim's tilt are put on it again every frame, so fading from Shown
+                // counted them twice for the fade's first frames (the aim: a 10° jerk back to idle).
+                _from.CopyFrom(_blended);
                 _fade = 0f;
                 _fadeLen = _hasShown ? clip.Blend / Consts.ANIM_FPS : 0f;
             }
@@ -336,6 +340,7 @@ namespace Eldenheim.Anim
                     Shown.Pos[i] = Vector3.Lerp(_from.Pos[i], _target.Pos[i], t);
                 }
             }
+            _blended.CopyFrom(Shown);
             _hasShown = true;
 
             bool twoHanded = p.Grip != Grip.OneHand || GuardsTwoHanded(p);
@@ -614,6 +619,8 @@ namespace Eldenheim.Anim
         }
 
         private float _aim, _aimRate;
+        /// <summary>Test harness (ytrace): the drawn tilt (rad).</summary>
+        public float AimShown => _aim;
         /// <summary>How long the drawn tilt takes to follow the sim's (s, SmoothDamp's time).</summary>
         private const float AIM_EASE = 0.15f;
 
