@@ -35,6 +35,80 @@ namespace Eldenheim
         private static string _probeRun;
         private static List<float> _smooth;
         private static List<string> _ytrace;
+        private static Dictionary<string, float> _cape;
+        private static int _capeFrames, _capeOver, _capeInside;
+        private static float _capeDeep, _capeDeepest, _capeBase;
+        private static readonly Dictionary<string, float> _capeIn = new Dictionary<string, float>();
+
+        /// <summary>capeprobe: the simulated cape's furthest particle in front of the chest this frame.</summary>
+        private static void SampleCape(Player vp)
+        {
+            Transform chest = vp.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Spine2");
+            Transform hips = vp.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Hips");
+            Transform neck = vp.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Neck");
+            var sim = MagicaCloth2.MagicaManager.Simulation;
+            var teams = MagicaCloth2.MagicaManager.Team?.teamDataArray;
+            if (chest == null || sim?.dispPosArray == null || teams == null)
+            {
+                return;
+            }
+            float most = float.MinValue;
+            foreach (MagicaCloth2.MagicaCloth mc in vp.GetComponentsInChildren<MagicaCloth2.MagicaCloth>())
+            {
+                int team = mc.Process?.TeamId ?? 0;
+                if (team <= 0 || team >= teams.Count)
+                {
+                    continue;
+                }
+                var chunk = teams[team].particleChunk;
+                for (int i = chunk.startIndex; i < chunk.startIndex + chunk.dataLength && i < sim.dispPosArray.Count; i++)
+                {
+                    Vector3 v = sim.dispPosArray[i];
+                    most = Mathf.Max(most, Vector3.Dot(v - chest.position, vp.transform.forward));
+                    if (i < sim.basePosArray.Count)
+                    {
+                        _capeBase = Mathf.Max(_capeBase, Vector3.Dot((Vector3)sim.basePosArray[i] - chest.position, vp.transform.forward));
+                    }
+                    if (hips != null && neck != null)
+                    {
+                        // Inside the torso: within 14 cm of the hips-to-neck line.
+                        Vector3 ab = neck.position - hips.position;
+                        float t = Mathf.Clamp01(Vector3.Dot(v - hips.position, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
+                        Vector3 spine = hips.position + ab * t;
+                        // Only the front half: the cape's pinned edge hangs on the back, by the spine.
+                        if (Vector3.Dot(v - spine, vp.transform.forward) > 0f)
+                        {
+                            _capeDeep = Mathf.Max(_capeDeep, 0.14f - Vector3.Distance(v, spine));
+                        }
+                    }
+                }
+            }
+            if (most == float.MinValue)
+            {
+                return;
+            }
+            Controller c = Controller.Local;
+            string at = c?.Sim == null ? "?" : c.Sim.State == Eldenheim.Sim.StateKind.Act ? $"{c.Sim.Act.Id} f{c.Sim.Act.F:0}" : c.Sim.State.ToString();
+            _capeFrames++;
+            if (most > 0.1f)
+            {
+                _capeOver++;
+            }
+            if (!_cape.TryGetValue(at, out float was) || most > was)
+            {
+                _cape[at] = most;
+            }
+            if (_capeDeep > 0f)
+            {
+                _capeInside++;
+                _capeDeepest = Mathf.Max(_capeDeepest, _capeDeep);
+                if (!_capeIn.TryGetValue(at, out float deep) || _capeDeep > deep)
+                {
+                    _capeIn[at] = _capeDeep;
+                }
+            }
+            _capeDeep = 0f;
+        }
         private static Vector3 _smoothLast;
 
         public static void Poll(string path)
@@ -70,6 +144,10 @@ namespace Eldenheim
             if (_deform != null)
             {
                 SampleDeform();
+            }
+            if (_cape != null && Player.m_localPlayer != null)
+            {
+                SampleCape(Player.m_localPlayer);
             }
             if (_ytrace != null && Player.m_localPlayer != null && Controller.Local?.Sim is Eldenheim.Sim.Player sp)
             {
@@ -306,6 +384,71 @@ namespace Eldenheim
                                       $"mode {sd.colliderCollisionConstraint.mode} colliders " + string.Join("; ", sd.colliderCollisionConstraint.colliderList.Where(cc => cc != null)
                                           .Select(cc => $"{cc.GetType().Name} on {cc.transform.name} size {cc.GetSize():F3} centre {cc.center:F3}")));
                         File.WriteAllText(Path.Combine(Plugin.Dir, $"cloth-{vp.GetInventory().GetAllItems().FirstOrDefault(i => i.m_equipped && i.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Shoulder)?.m_dropPrefab?.name}-{mc.name}.json"), json);
+                    }
+                    break;
+                case "vanilla":
+                    // vanilla: Valheim's own movement numbers for this player, and its skills.
+                    Plugin.Report($"vanilla: walk {vp.m_walkSpeed} jog {vp.m_speed} run {vp.m_runSpeed} crouch {vp.m_crouchSpeed} jumpForce {vp.m_jumpForce} fwd {vp.m_jumpForceForward} " +
+                                  $"gravity {Physics.gravity.y} drag {vp.GetComponent<Rigidbody>().linearDamping} run skill {vp.GetSkillFactor(Skills.SkillType.Run):0.00} jump skill {vp.GetSkillFactor(Skills.SkillType.Jump):0.00}");
+                    break;
+                case "vjump":
+                    // vjump: Valheim's own jump (run with Eldenheim off: setting Enabled false).
+                    vp.Jump(true);
+                    break;
+                case "skill":
+                    // skill NAME LEVEL: set a skill's level (Jump, Run...).
+                    vp.GetSkills().CheatResetSkill(a[1]);
+                    vp.GetSkills().CheatRaiseSkill(a[1], F(a[2]), false);
+                    break;
+                case "landings":
+                    // landings: the held moveset's jump-attack landings (frames: total, cancel by moving, first hit) and its air swings.
+                    {
+                        var m = c.Sim.Moveset();
+                        foreach (var k in new[] { Eldenheim.Sim.AttackKind.JumpLightLand, Eldenheim.Sim.AttackKind.JumpLightLandShort, Eldenheim.Sim.AttackKind.JumpHeavyLand, Eldenheim.Sim.AttackKind.JumpHeavyLandShort })
+                        {
+                            var d = m.Attack(k);
+                            Plugin.Report(d == null ? $"landings: {k} none" : $"landings: {k} total {d.Total:0} move {d.CancelMove:0} light {d.CancelLight:0} first hit {d.FirstHit?.From:0}-{d.FirstHit?.To:0} src {d.Source}");
+                        }
+                        foreach (bool heavy in new[] { false, true })
+                        {
+                            var d = m.Air(heavy);
+                            Plugin.Report($"landings: air {(heavy ? "heavy" : "light")} {d?.From:0}-{d?.To:0} src {d?.Source}");
+                        }
+                    }
+                    break;
+                case "capeprobe":
+                    // capeprobe start|stop: per frame, how far the simulated cape (MagicaCloth's particles) gets in front of the chest
+                    // (along the body's facing, from the Spine2 bone); the worst per action frame.
+                    if (a[1] == "start")
+                    {
+                        _cape = new Dictionary<string, float>();
+                        _capeFrames = _capeOver = _capeInside = 0;
+                        _capeDeepest = _capeBase = 0f;
+                        _capeIn.Clear();
+                    }
+                    else if (_cape != null)
+                    {
+                        Plugin.Report($"capeprobe: {_capeFrames} frames, {_capeOver} with the cape over 10 cm in front of the chest; worst: " +
+                                      string.Join(", ", _cape.OrderByDescending(kv => kv.Value).Take(4).Select(kv => $"{kv.Key} {kv.Value:+0.00;-0.00}")) +
+                                      $" | the skinned cape's own worst {_capeBase:+0.00}" + $" | INSIDE the torso on {_capeInside} frames, deepest {_capeDeepest * 100f:0} cm: " +
+                                      string.Join(", ", _capeIn.OrderByDescending(kv => kv.Value).Take(6).Select(kv => $"{kv.Key} {kv.Value * 100f:0}")));
+                        _cape = null;
+                    }
+                    break;
+                case "clothset":
+                    // clothset PATH VALUE: set one of the player's cloth settings (e.g. inertiaConstraint.worldInertia 0.5) and rebuild its parameters.
+                    foreach (MagicaCloth2.MagicaCloth mc in vp.GetComponentsInChildren<MagicaCloth2.MagicaCloth>())
+                    {
+                        object o = mc.SerializeData;
+                        string[] path = a[1].Split('.');
+                        for (int i = 0; i < path.Length - 1; i++)
+                        {
+                            o = o.GetType().GetField(path[i]).GetValue(o);
+                        }
+                        var field = o.GetType().GetField(path[path.Length - 1]);
+                        field.SetValue(o, Convert.ChangeType(a[2], field.FieldType, CultureInfo.InvariantCulture));
+                        mc.SetParameterChange();
+                        Plugin.Report($"clothset: {mc.name} {a[1]} = {field.GetValue(o)}");
                     }
                     break;
                 case "heal":
@@ -713,8 +856,9 @@ namespace Eldenheim
                         case "HitboxDebug": Settings.HitboxDebug.Value = bool.Parse(a[2]); break;
                         case "ValheimIframes": Settings.ValheimIframes.Value = bool.Parse(a[2]); break;
                         case "IframeDebug": Settings.IframeDebug.Value = bool.Parse(a[2]); break;
+                        case "Enabled": Settings.Enabled.Value = bool.Parse(a[2]); break;
                         case "GuardTowardCamera": Settings.GuardTowardCamera.Value = bool.Parse(a[2]); break;
-                        case "ClothEveryFrame": Settings.ClothEveryFrame = bool.Parse(a[2]); break;
+                        case "CapeFix": Settings.CapeFix = bool.Parse(a[2]); break;
                         case "ArmsOutOfTorso": Settings.ArmsOutOfTorso = bool.Parse(a[2]); c.ArmPeak = 0f; break;
                         default: Plugin.Report($"setting: {a[1]} unknown"); break;
                     }

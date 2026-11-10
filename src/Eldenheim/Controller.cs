@@ -1982,6 +1982,10 @@ namespace Eldenheim
             _level.NoSlide = Sim.Sprinting;
             Vec3 before = Sim.Pos;
             Sim.Step(inp, _level, target, InCombat());
+            if (!wasAir && Sim.AirAttackState is AirAttack back && back.Resumed)
+            {
+                Log.Add($"jump attack: off an edge at frame {back.F:0}, back in the air");
+            }
             Ice(before);
             Combat.AimAt = LockTarget != null ? LockTarget.GetCenterPoint() : (Vector3?)null;
             _combat.AfterTick(_vp, Sim, _rightBlade, _leftBlade, Log);
