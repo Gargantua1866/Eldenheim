@@ -2815,26 +2815,21 @@ namespace Eldenheim
             return way.sqrMagnitude > 1e-4f ? Space.ToSim(transform.position + way.normalized * 20f) : (Vec3?)null;
         }
 
-        /// <summary>Elden Ring's free aim: how far an unlocked attack tilts up or down (ESTIMATE, not read from the game).</summary>
-        private const float AIM_PITCH_MAX = 30f * Mathf.Deg2Rad;
-        /// <summary>How fast the tilt follows the camera (rad/s).</summary>
-        private const float AIM_PITCH_RATE = 4f;
-
         /// <summary>
         /// Unlocked (and with no Auto Target), a ground attack aims up or down
-        /// the way the camera looks, within AIM_PITCH_MAX: the blade path and the
-        /// upper body tilt about the hips. Back to level outside attacks.
+        /// the way the camera looks, within FreeAimVertical degrees: the blade
+        /// path at once, the drawn upper body easing there (Chooser). Level
+        /// outside attacks.
         /// </summary>
         private float FreeAim(Character aim)
         {
             bool attacking = Sim.State == StateKind.Act && Sim.Act.Id.IsAttack && !SimPlayer.IsJumpLanding(Sim.Act.Id.Kind) && !Sim.AirAttackState.HasValue;
-            float goal = 0f;
-            if (attacking && aim == null)
+            if (!attacking || aim != null)
             {
-                float look = Mathf.Asin(Mathf.Clamp(_vp.GetLookDir().y, -1f, 1f));
-                goal = Mathf.Clamp(look, -AIM_PITCH_MAX, AIM_PITCH_MAX);
+                return 0f;
             }
-            return Mathf.MoveTowards(Sim.AimPitch, goal, AIM_PITCH_RATE * Consts.DT);
+            float most = Settings.FreeAimVertical.Value * Mathf.Deg2Rad;
+            return Mathf.Clamp(Mathf.Asin(Mathf.Clamp(_vp.GetLookDir().y, -1f, 1f)), -most, most);
         }
 
         /// <summary>What lock-on can target: living enemies (and PvP players) in range.</summary>

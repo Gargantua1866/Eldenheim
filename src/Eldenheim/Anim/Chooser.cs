@@ -408,7 +408,12 @@ namespace Eldenheim.Anim
 
             _sprintW = Mathf.Clamp01(_sprintW + (p.Sprinting && grounded ? step : -step) * 0.5f);
             Unlean(1f - Settings.SprintLean.Value / 100f, _sprintW);
-            Aim(p.AimPitch);
+            // The tilt eases in and out (the sim's steps at once: hits aim where the camera looks).
+            if (dt > 0f)
+            {
+                _aim = Mathf.SmoothDamp(_aim, p.AimPitch, ref _aimRate, AIM_EASE, Mathf.Infinity, dt);
+            }
+            Aim(_aim);
 
             // The body's animations leave the fingers open: the grip is the
             // one in the stance's idle, carried on each hand's weapon bone.
@@ -607,6 +612,10 @@ namespace Eldenheim.Anim
                             && !n.Contains("Thigh") && !n.Contains("Calf") && !n.Contains("Foot") && !n.Contains("Toe");
             }
         }
+
+        private float _aim, _aimRate;
+        /// <summary>How long the drawn tilt takes to follow the sim's (s, SmoothDamp's time).</summary>
+        private const float AIM_EASE = 0.15f;
 
         /// <summary>The sim's AimPitch (free aim): the upper body tilted up or down about the hips, as its blade path is.</summary>
         private void Aim(float pitch)

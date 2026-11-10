@@ -20,6 +20,7 @@ namespace Eldenheim
 
         public static ConfigEntry<bool> EmptyHandGuard;
         public static ConfigEntry<bool> GuardTowardCamera;
+        public static ConfigEntry<int> FreeAimVertical;
         public static ConfigEntry<bool> InstantJump;
         public static ConfigEntry<bool> LeftJoystickInventory;
         public static ConfigEntry<bool> DodgeInInventory;
@@ -216,6 +217,9 @@ namespace Eldenheim
             GuardTowardCamera = Bind(c, CONTROLS, "GuardTowardCamera", false, Controls(
                 "Off (Elden Ring): guarding unlocked, the player turns the way it moves. On (Valheim-like): while guarding it faces the " +
                 "crosshair (the camera's way) and moves sideways and back as when locked on. Also for EmptyHandGuard's guard."));
+            FreeAimVertical = Bind(c, CONTROLS, "FreeAimVertical", 10, Controls(
+                "Unlocked, attacks aim up or down the way the camera looks, as in Elden Ring, by up to this many degrees either way " +
+                "(the swing's reach and the upper body tilt about the hips). 0 = off.", new AcceptableValueRange<int>(0, 30)));
             InstantJump = Bind(c, CONTROLS, "InstantJump", true, Controls(
                 "Off (Elden Ring): a jump crouches before it leaves the ground. On (Valheim-like): it leaves the ground at once."));
             LockOnRange = Bind(c, CONTROLS, "LockOnRange", 30, Controls(
