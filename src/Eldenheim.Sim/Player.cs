@@ -230,6 +230,8 @@ namespace Eldenheim.Sim
         /// swing is over), instead of ending in a plain fall.
         /// </summary>
         public bool ResumeAirAttacks;
+        /// <summary>Eldenheim: a held direction doesn't cut a jump attack's landing short; it plays out (a dodge or an attack still can).</summary>
+        public bool LandingsPlayOut;
         /// <summary>
         /// Eldenheim: Elden Ring's free aim, unlocked: how far (radians, up positive)
         /// the attack's blade path is tilted about the hips, as the drawn upper body is.
@@ -1028,7 +1030,7 @@ namespace Eldenheim.Sim
                 State = StateKind.Ground;
                 Speed = 0f;
             }
-            else if (hasWish && a.F >= def.CancelMove)
+            else if (hasWish && a.F >= def.CancelMove && !(LandingsPlayOut && a.Id.IsAttack && IsJumpLanding(a.Id.Kind)))
             {
                 State = StateKind.Ground;
                 MoveDir = wish;
