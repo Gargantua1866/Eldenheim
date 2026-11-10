@@ -43,6 +43,7 @@ namespace Eldenheim
             Try(h, typeof(Projectile), "OnHit", postfix: nameof(ProjectileHit));
             Try(h, typeof(MonoUpdaters), "FixedUpdate", prefix: nameof(PhysicsStep));
             Try(h, typeof(Attack), "AddHitPoint", prefix: nameof(AttackHitPoint));
+            Try(h, typeof(MeleeWeaponTrail), nameof(MeleeWeaponTrail.CustomFixedUpdate), prefix: nameof(TrailStep));
             try
             {
                 h.Patch(AccessTools.Method(typeof(Player), "UpdateStats", new[] { typeof(float) }),
@@ -147,6 +148,9 @@ namespace Eldenheim
         }
 
         private static void PhysicsStep() => Controller.BeforePhysicsStep();
+
+        /// <summary>A posed player's swing trails sample every rendered frame from the drawn pose (Controller.DriveTrails), not each physics step.</summary>
+        private static bool TrailStep(MeleeWeaponTrail __instance) => !Controller.TrailDrivenHere(__instance);
 
         /// <summary>
         /// A melee blow passing under a jump's legs (Controller.Incoming's Jumped)

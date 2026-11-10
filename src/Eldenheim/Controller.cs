@@ -1569,6 +1569,7 @@ namespace Eldenheim
                     Pose(Sim, poseDt, (Time.time - Time.fixedTime) / Consts.DT, _clock + (Time.time - Time.fixedTime));
                 }
                 WritePose();
+                DriveTrails();
                 return;
             }
             if (_vp != VPlayer.m_localPlayer)
@@ -1619,6 +1620,7 @@ namespace Eldenheim
             // flame emitted from where Valheim's animator had left the hand
             // trailed fire between the two places.
             WritePose();
+            DriveTrails();
         }
 
         // MagicaCloth simulates capes just before the LateUpdate scripts
@@ -1636,6 +1638,74 @@ namespace Eldenheim
         };
         private static MagicaCloth2.MagicaManager.UpdateMethod _hooked;
         private int _posedFrame = -1;
+
+        // Swing trails on posed players, by owner (null: not a player's); and whether a trail step is ours.
+        private static readonly Dictionary<MeleeWeaponTrail, Controller> TrailOwners = new Dictionary<MeleeWeaponTrail, Controller>();
+        private static bool _drivingTrails;
+        private static readonly List<MeleeWeaponTrail> TrailScratch = new List<MeleeWeaponTrail>();
+
+        /// <summary>
+        /// Valheim samples a swing trail on each physics step (50 Hz, MonoUpdaters). The
+        /// frame's first step still had the last frame's pose, so on a dip in the frame
+        /// rate a trail point came from an older pose and the arc kinked, and at a fast
+        /// swing's speed (Milady's) the points sat 0.4 m apart. A posed player's trails
+        /// sample here instead, every rendered frame, right after the pose is written.
+        /// </summary>
+        internal static bool TrailDrivenHere(MeleeWeaponTrail trail)
+        {
+            if (_drivingTrails)
+            {
+                return false;
+            }
+            Controller owner = TrailOwner(trail);
+            return owner != null && owner.Active;
+        }
+
+        private static Controller TrailOwner(MeleeWeaponTrail trail)
+        {
+            if (!TrailOwners.TryGetValue(trail, out Controller owner))
+            {
+                if (TrailOwners.Count > 256)
+                {
+                    // Items come and go: forget the destroyed ones.
+                    foreach (MeleeWeaponTrail gone in TrailOwners.Keys.Where(k => k == null).ToList())
+                    {
+                        TrailOwners.Remove(gone);
+                    }
+                }
+                owner = trail != null ? trail.GetComponentInParent<Controller>() : null;
+                TrailOwners[trail] = owner;
+            }
+            return owner;
+        }
+
+        private void DriveTrails()
+        {
+            if (!Active || Time.deltaTime <= 0f)
+            {
+                return;
+            }
+            TrailScratch.Clear();
+            foreach (IMonoUpdater u in MeleeWeaponTrail.Instances)
+            {
+                if (u is MeleeWeaponTrail t && t != null && TrailOwner(t) == this)
+                {
+                    TrailScratch.Add(t);
+                }
+            }
+            _drivingTrails = true;
+            try
+            {
+                foreach (MeleeWeaponTrail t in TrailScratch)
+                {
+                    t.CustomFixedUpdate(Time.deltaTime);
+                }
+            }
+            finally
+            {
+                _drivingTrails = false;
+            }
+        }
 
         private void WritePose()
         {
