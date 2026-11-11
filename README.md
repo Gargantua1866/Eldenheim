@@ -178,6 +178,18 @@ With an empty left hand, the guard button throws a left punch, as in Elden
 Ring; `EmptyHandGuard` (F1 → 2 - Controls) makes it guard with the right
 weapon instead, Valheim-style. The guard can be raised while sprinting.
 
+More settings under F1 → 2 - Controls:
+
+- `ValheimEmptyHanded`: with nothing in either hand, Valheim's own movement,
+  jumping and animations take over (as with a tool or a bow).
+- `GuardTowardCamera`: while guarding unlocked, the player faces the crosshair
+  and moves sideways and back as when locked on.
+- `FreeAimVertical` (default 10): unlocked, attacks aim up or down the way the
+  camera looks, by up to this many degrees; 0 turns it off.
+
+And under 6 - Combat (server), `WeaponKnockbackScale` scales how far hits push what
+they strike (1 = Valheim's weapon knockback, 0 = none).
+
 ### Weapons in the off hand
 
 To put a melee weapon in the left hand, hold the `TwoHandModifier` button
