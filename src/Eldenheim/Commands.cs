@@ -37,6 +37,8 @@ namespace Eldenheim
         private static List<string> _ytrace;
         internal static Vector3? VDrive;
         internal static bool VDriveRun;
+        /// <summary>Test harness (padcam): play as if on a gamepad, for CameraAutoRotation.</summary>
+        internal static bool AsGamepad;
         private static Dictionary<string, float> _cape;
         private static int _capeFrames, _capeOver, _capeInside;
         private static float _capeDeep, _capeDeepest, _capeBase;
@@ -403,6 +405,9 @@ namespace Eldenheim
                     VDrive = new Vector3(F(a[1]), 0f, F(a[2]));
                     VDriveRun = a.Length > 4 && a[4] == "run";
                     Timers.Add((Time.time + F(a[3]), Time.frameCount + 3, () => VDrive = null));
+                    break;
+                case "padcam":
+                    AsGamepad = bool.Parse(a[1]);
                     break;
                 case "radial":
                     // radial: open Valheim's radial menu (its top level), as its button does.
