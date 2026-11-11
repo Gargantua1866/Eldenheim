@@ -59,6 +59,7 @@ namespace Eldenheim.Anim
         {
             _clips = clips;
             int n = clips.Bones.Length;
+            _parent = Parents(clips);
             Shown = new ErPose(n);
             _from = new ErPose(n);
             _target = new ErPose(n);
@@ -334,9 +335,16 @@ namespace Eldenheim.Anim
             }
             else
             {
+                // Each bone blended relative to its parent, as ER's own blends are: blending the
+                // character-space rotations took the shortest way for each bone alone, swinging an
+                // arm round the back where the spine's twist carries it round the front (the
+                // katanas' two-handed roll attack after the roll). Parents come before children.
                 for (int i = 0; i < Shown.Rot.Length; i++)
                 {
-                    Shown.Rot[i] = Quaternion.Slerp(_from.Rot[i], _target.Rot[i], t);
+                    int up = _parent[i];
+                    Shown.Rot[i] = up < 0
+                        ? Quaternion.Slerp(_from.Rot[i], _target.Rot[i], t)
+                        : Shown.Rot[up] * Quaternion.Slerp(Quaternion.Inverse(_from.Rot[up]) * _from.Rot[i], Quaternion.Inverse(_target.Rot[up]) * _target.Rot[i], t);
                     Shown.Pos[i] = Vector3.Lerp(_from.Pos[i], _target.Pos[i], t);
                 }
             }
@@ -617,6 +625,51 @@ namespace Eldenheim.Anim
                 _upper[i] = n != "Pelvis" && n != "RootPos" && n != "Master" && n != "RootRotY" && n != "RootRotXZ"
                             && !n.Contains("Thigh") && !n.Contains("Calf") && !n.Contains("Foot") && !n.Contains("Toe");
             }
+        }
+
+        private readonly int[] _parent;
+
+        /// <summary>
+        /// Each baked bone's parent among the baked bones (-1: none), from ER's names: the
+        /// bake keeps only these, so a parent here may skip ER's own in-between bones.
+        /// </summary>
+        private static int[] Parents(Clips clips)
+        {
+            string[] names = clips.Bones;
+            var parent = new int[names.Length];
+            for (int i = 0; i < names.Length; i++)
+            {
+                string n = names[i], side = n.Length > 2 && n[1] == '_' ? n.Substring(0, 2) : "";
+                string up;
+                switch (side == "" ? n : n.Substring(2))
+                {
+                    case "Pelvis": up = "RootPos"; break;
+                    case "Spine": up = "Pelvis"; break;
+                    case "Spine1": up = "Spine"; break;
+                    case "Spine2": up = "Spine1"; break;
+                    case "Neck": up = "Spine2"; break;
+                    case "Head": up = "Neck"; break;
+                    case "Clavicle": up = "Spine2"; break;
+                    case "UpperArm": up = side + "Clavicle"; break;
+                    case "Forearm": up = side + "UpperArm"; break;
+                    case "Hand": up = side + "Forearm"; break;
+                    case "Weapon": up = side + "Hand"; break;
+                    case "Thigh": up = "Pelvis"; break;
+                    case "Calf": up = side + "Thigh"; break;
+                    case "Foot": up = side + "Calf"; break;
+                    case "Toe0": up = side + "Foot"; break;
+                    default:
+                        // Fingers: X_FingerN on the hand, X_FingerN1 on X_FingerN, X_FingerN2 on X_FingerN1.
+                        up = !n.Contains("_Finger") ? null : n.Length == 9 ? side + "Hand" : n.EndsWith("1") ? n.Substring(0, 9) : n.Substring(0, 9) + "1";
+                        break;
+                }
+                parent[i] = up != null ? clips.Bone(up) : -1;
+                if (parent[i] >= i)
+                {
+                    parent[i] = -1;
+                }
+            }
+            return parent;
         }
 
         /// <summary>Where the head looks (character space, Valheim's CharacterAnimEvent look); zero: ahead.</summary>
