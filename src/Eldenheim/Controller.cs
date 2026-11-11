@@ -2179,7 +2179,7 @@ namespace Eldenheim
             // set), guard on the guard button.
             Sim.PairedOnLight = Hands.IsPair(Right) && Right.m_shared.m_skillType != Skills.SkillType.Unarmed;
             Sim.HeavyDebounce = 1f;
-            Sim.DodgeIframes = Settings.ValheimIframes.Value ? ValheimDodgeFrames() : 0f;
+            Sim.DodgeIframes = Settings.ValheimIframes.Value ? ValheimDodgeIframes * Consts.ANIM_FPS : 0f;
             Sim.DodgeRecovery = Settings.ValheimIframes.Value ? ValheimDodgeGap : 0f;
             if (_vp.IsEncumbered() || StatusSpeed() <= 0f)
             {
@@ -2811,38 +2811,14 @@ namespace Eldenheim
 
         // --- I-frames -------------------------------------------------------------
 
-        private static float _valheimDodge = -1f;
-
         /// <summary>
-        /// Valheim's dodge i-frames, in ER frames (30 fps): from the roll's start
-        /// to its clip's DodgeMortal event (CharacterAnimEvent → Player.OnDodgeMortal), read from the
-        /// animator once.
+        /// Valheim's dodge, measured 2026-11-11 (a lone vanilla dodge, Player.InDodge and IsDodgeInvincible):
+        /// invincible 0.44 s from its start, and a new one can start 0.92 s after it. The animator plays the
+        /// 1.5 s clip about 1.6 times fast, so its DodgeMortal event (0.70 s) isn't the window. Chained vanilla
+        /// dodges look longer (1.12 s apart, 0.62 s invincible) only because each blends in for 0.18 s,
+        /// invincible already; Eldenheim's roll starts at once.
         /// </summary>
-        /// <summary>
-        /// From one vanilla dodge to the next with the button held (s): Player.UpdateDodge waits for the
-        /// animator to leave its dodge state, which it does before the 1.5 s clip ends. Measured 2026-11-11.
-        /// </summary>
-        private const float ValheimDodgeGap = 1.12f;
-
-        private float ValheimDodgeFrames()
-        {
-            if (_valheimDodge < 0f && _animator != null && _animator.runtimeAnimatorController != null)
-            {
-                _valheimDodge = 0f;
-                foreach (AnimationClip clip in _animator.runtimeAnimatorController.animationClips)
-                {
-                    foreach (AnimationEvent e in clip.events)
-                    {
-                        if (e.functionName == "DodgeMortal" && e.time * Consts.ANIM_FPS > _valheimDodge)
-                        {
-                            _valheimDodge = e.time * Consts.ANIM_FPS;
-                            Plugin.Report($"Valheim's dodge: {clip.name}, {clip.length:0.00} s, mortal at {e.time:0.00} s ({_valheimDodge:0.0} frames)");
-                        }
-                    }
-                }
-            }
-            return Mathf.Max(_valheimDodge, 0f);
-        }
+        private const float ValheimDodgeIframes = 0.44f, ValheimDodgeGap = 0.92f;
 
         /// <summary>In the air and clear of the ground: hits below the hips miss (Incoming, the sim's Jumped).</summary>
         private bool LegsClear() => Sim != null && Sim.Airborne() && Sim.Pos.Y - _level.Height(Sim.Pos.X, Sim.Pos.Z) > Consts.JUMP_CLEARANCE;
