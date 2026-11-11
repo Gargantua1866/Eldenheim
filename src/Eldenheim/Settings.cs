@@ -320,7 +320,8 @@ namespace Eldenheim
             ValheimIframes = Bind(c, COMBAT, "ValheimIframes", false,
                 Combat("Off (Elden Ring): rolls are invincible for frames 0-13 at 30 per second (0.43 s; 0-12 when heavily loaded), the backstep for " +
                        "0-7 (0.23 s). On (Valheim): every roll and backstep is invincible from its start for as long as Valheim's own dodge is (up to its " +
-                       "dodge clip's DodgeMortal event, read from the game; the log line \"Valheim's dodge\" gives it)."));
+                       "dodge clip's DodgeMortal event, read from the game; the log line \"Valheim's dodge\" gives it), and a new roll waits as long after the last " +
+                       "as Valheim's does (1.1 s)."));
 
             NegativeStamina = Bind(c, STAMINA, "NegativeStamina", true,
                 "On (Elden Ring): any attack can start while there is stamina left, whatever it costs. One that runs the bar dry leaves it " +

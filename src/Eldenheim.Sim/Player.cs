@@ -189,6 +189,13 @@ namespace Eldenheim.Sim
         public bool PairedOnLight;
         /// <summary>Rolls and backsteps are invincible from their start for this many frames instead of ER's own windows (0: ER's).</summary>
         public float DodgeIframes;
+        /// <summary>
+        /// Eldenheim (ValheimIframes): the least time (s) from one roll or backstep to the next, as
+        /// Valheim's own dodge can't start again until its clip is over; a press sooner waits for it.
+        /// </summary>
+        public float DodgeRecovery;
+        private float _sinceDodge = 1000f;
+        private bool DodgeTooSoon() => DodgeRecovery > 0f && _sinceDodge < DodgeRecovery;
         /// <summary>Infinite poise: hits hurt but never stagger or knock down (guarding still reacts).</summary>
         public bool NoFlinch;
         /// <summary>Walking off a drop smaller than this lands without a landing animation (metres; 0: always one).</summary>
@@ -604,6 +611,7 @@ namespace Eldenheim.Sim
         public void Step(Input inp, ILevel level, Vec3? target, bool inCombat)
         {
             InCombat = inCombat;
+            _sinceDodge = F.Min(_sinceDodge + Consts.DT, 1000f);
             if (State == StateKind.Dead)
             {
                 DeadT += Consts.DF;
@@ -761,6 +769,10 @@ namespace Eldenheim.Sim
                     ActionId? attack;
                     switch (req)
                     {
+                        case Req.Dodge when DodgeTooSoon():
+                            Buffer = Req.Dodge;
+                            attack = null;
+                            break;
                         case Req.Dodge:
                             StartDodge(hasWish ? wish : (Vec3?)null, target);
                             return false;
@@ -1081,6 +1093,10 @@ namespace Eldenheim.Sim
                         ActionId? next;
                         switch (req)
                         {
+                            case Req.Dodge when DodgeTooSoon():
+                                Buffer = Req.Dodge;
+                                next = null;
+                                break;
                             case Req.Dodge:
                                 StartDodge(hasWish ? wish : (Vec3?)null, target);
                                 return false;
@@ -1477,6 +1493,7 @@ namespace Eldenheim.Sim
 
         private void StartDodge(Vec3? wish, Vec3? target)
         {
+            _sinceDodge = 0f;
             if (!(wish is Vec3 dir))
             {
                 Start(ActionId.Backstep);

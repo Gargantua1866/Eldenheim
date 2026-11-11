@@ -2176,6 +2176,7 @@ namespace Eldenheim
             Sim.PairedOnLight = Hands.IsPair(Right) && Right.m_shared.m_skillType != Skills.SkillType.Unarmed;
             Sim.HeavyDebounce = 1f;
             Sim.DodgeIframes = Settings.ValheimIframes.Value ? ValheimDodgeFrames() : 0f;
+            Sim.DodgeRecovery = Settings.ValheimIframes.Value ? ValheimDodgeGap : 0f;
             if (_vp.IsEncumbered() || StatusSpeed() <= 0f)
             {
                 // As Valheim: encumbered (or held fast, Immobilized) there's no jumping, dodging or running.
@@ -2813,6 +2814,12 @@ namespace Eldenheim
         /// to its clip's DodgeMortal event (CharacterAnimEvent → Player.OnDodgeMortal), read from the
         /// animator once.
         /// </summary>
+        /// <summary>
+        /// From one vanilla dodge to the next with the button held (s): Player.UpdateDodge waits for the
+        /// animator to leave its dodge state, which it does before the 1.5 s clip ends. Measured 2026-11-11.
+        /// </summary>
+        private const float ValheimDodgeGap = 1.12f;
+
         private float ValheimDodgeFrames()
         {
             if (_valheimDodge < 0f && _animator != null && _animator.runtimeAnimatorController != null)
