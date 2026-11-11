@@ -126,6 +126,8 @@ WEAPONS = [
     ("Beast Claw", 68500000),
     ("Dryleaf Arts", 60500000),
     ("Dane's Footwork", 60510000),
+    # The Flowing Curved Sword: a curved sword of its own style.
+    ("Flowing Curved Sword", 7060000),
     ("Shield", 30000000),
 ]
 
@@ -203,6 +205,8 @@ BLADES = {
     # The hand-to-hand arts strike with the hand, or (LIMBS) a foot.
     "Dryleaf Arts": ((0.0, -0.03), (0.0, 0.09)),
     "Dane's Footwork": ((0.0, -0.03), (0.0, 0.09)),
+    # ESTIMATE: a long slim curved blade (the game's is about 1.1 m).
+    "Flowing Curved Sword": ((0.0, 0.1), (0.05, 1.1)),
     "Shield": ((-0.28, 0.0), (0.28, 0.0)),
 }
 

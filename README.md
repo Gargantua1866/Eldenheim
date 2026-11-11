@@ -281,7 +281,7 @@ and for bare hands (BareHands, at the top: Fist, or a hand-to-hand art).
 | Colossal swords | Colossal Sword |
 | Thrusting swords | Rapier |
 | Heavy thrusting swords | Heavy Thrusting Sword, Great Épée |
-| Curved swords | Curved Sword, Shamshir |
+| Curved swords | Curved Sword, Shamshir, Flowing Curved Sword |
 | Curved greatswords | Curved Greatsword, Zamor Curved Sword |
 | Katanas | Uchigatana, Serpentbone Blade, Meteoric Ore Blade |
 | Great katanas | Great Katana, Rakshasa's Great Katana |

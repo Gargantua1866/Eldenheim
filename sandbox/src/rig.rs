@@ -229,6 +229,8 @@ const WEAPON_PARTS: &[&[([f32; 3], [f32; 3], Stuff)]] = &[
     // Dryleaf arts, Dane's footwork: the hands themselves
     &[],
     &[],
+    // Flowing curved sword: a long slim curved sword
+    &[([0.03, 0.22, 0.03], [0.0, -0.03, 0.0], Stuff::Wood), ([0.12, 0.02, 0.04], [0.0, 0.09, 0.0], Stuff::Steel), ([0.04, 0.55, 0.012], [0.0, 0.38, 0.0], Stuff::Steel), ([0.04, 0.5, 0.012], [0.05, 0.88, 0.0], Stuff::Steel)],
 ];
 
 #[derive(Clone, Copy)]

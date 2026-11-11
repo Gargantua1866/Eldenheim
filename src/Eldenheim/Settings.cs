@@ -93,7 +93,7 @@ namespace Eldenheim
             "Colossal Sword",
             "Rapier",
             "Heavy Thrusting Sword", "Great Épée",
-            "Curved Sword", "Shamshir",
+            "Curved Sword", "Shamshir", "Flowing Curved Sword",
             "Curved Greatsword", "Zamor Curved Sword",
             "Uchigatana", "Serpentbone Blade", "Meteoric Ore Blade",
             "Great Katana", "Rakshasa's Great Katana",
@@ -121,7 +121,7 @@ namespace Eldenheim
         {
             new[] { "BareHands", "Fist", "Nothing in the hands. Fist: Elden Ring's fists (the Caestus's moveset). Dryleaf Arts, Dane's Footwork: the hand-to-hand arts, " +
                                         "punching and kicking (held in both hands, as knuckles are; Dane's Footwork kicks more)." },
-            new[] { "OneHandedSwords", "Longsword", "Valheim's one-handed swords. Longsword: Elden Ring's straight swords. Shamshir: its curved sword's style (sweeping slashes). " +
+            new[] { "OneHandedSwords", "Longsword", "Valheim's one-handed swords. Longsword: Elden Ring's straight swords. Shamshir: its curved sword's style (sweeping slashes). Flowing Curved Sword: its own charged heavies. " +
                                                     "Warhawk's Talon, Carian Knight's Sword: straight swords of their own styles." },
             new[] { "TwoHandedSwords", "Claymore", "Valheim's two-handed swords (the Krom...). Claymore: Elden Ring's greatsword (style 125). " +
                                                    "Knight's Greatsword: that family and the Inseparable Sword (style 128). Milady: a light greatsword. " +
