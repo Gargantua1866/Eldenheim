@@ -228,7 +228,7 @@ namespace Eldenheim
                 new AcceptableValueRange<int>(10, 60)));
             NoLockOnRecentre = Bind(c, CONTROLS, "NoLockOnRecentre", true, Controls(
                 "On: the lock-on button does nothing when there is nothing to lock onto. Off (Elden Ring): it recentres the camera behind the player."));
-            LockSwitchFlick = Bind(c, CONTROLS, "LockOnSwitchFlick", 30,
+            LockSwitchFlick = Bind(c, CONTROLS, "LockOnSwitchFlick", 45,
                 Controls("Locked on, flick the mouse this far (pixels, within about a fifth of a second) left or right to switch to the next " +
                          "target that way; the right stick switches when pushed over. Higher: a bigger flick.",
                     new AcceptableValueRange<int>(10, 400)), behaviour);
