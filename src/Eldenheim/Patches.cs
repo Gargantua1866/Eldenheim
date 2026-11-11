@@ -126,7 +126,17 @@ namespace Eldenheim
         private static void ProjectileVisual(Projectile __instance) => Combat.ShowThrownModel(__instance);
 
         /// <summary>A thrown sledge (Smithscript Hammer) slams where it struck.</summary>
-        private static void ProjectileHit(Projectile __instance, Collider collider, Vector3 hitPoint) => Combat.ThrownImpact(__instance, collider, hitPoint);
+        private static readonly AccessTools.FieldRef<Projectile, bool> DidHit = AccessTools.FieldRefAccess<Projectile, bool>("m_didHit");
+        private static readonly AccessTools.FieldRef<Projectile, bool> DidBounce = AccessTools.FieldRefAccess<Projectile, bool>("m_didBounce");
+
+        // Only where it struck: OnHit is also called for what it passes (the thrower's own body, skipped).
+        private static void ProjectileHit(Projectile __instance, Collider collider, Vector3 hitPoint)
+        {
+            if (DidHit(__instance) || DidBounce(__instance))
+            {
+                Combat.ThrownImpact(__instance, collider, hitPoint);
+            }
+        }
 
         /// <summary>A catapult holds the player (Catapult.CollectLaunchCharacters) and throws it: Valheim's physics until a move.</summary>
         private static void TempParent(Character __instance)

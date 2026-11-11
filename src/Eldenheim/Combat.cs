@@ -407,6 +407,12 @@ namespace Eldenheim
                 // Locked on: lift it by what it falls on the way, so it arrives at the target.
                 velocity.y += 0.5f * projectile.m_gravity * Mathf.Min(Vector3.Distance(AimAt.Value, from) / throwing.m_projectileVel, 2f);
             }
+            if (borrowed && projectile != null)
+            {
+                // The flint spear's thin ray under a sledge's model: the weapon spinning end over end
+                // strikes about as far out as its head reaches from the middle.
+                projectile.m_rayRadius = Mathf.Max(projectile.m_rayRadius, ThrownReach(weapon));
+            }
             go.GetComponent<IProjectile>()?.Setup(vp, velocity, throwing.m_attackHitNoise, data, consume ? weapon : null, null);
             if (Slams(weapon) && projectile != null)
             {
@@ -451,7 +457,7 @@ namespace Eldenheim
                     vp.GetInventory().RemoveItem(weapon);
                 }
             }
-            log.Add($"throw: {throwing.m_attackProjectile.name} at {throwing.m_projectileVel:0} m/s, x{factor:0.00} ({data.GetTotalDamage():0}){(consume ? ", spear thrown away" : "")}");
+            log.Add($"throw: {throwing.m_attackProjectile.name} at {throwing.m_projectileVel:0} m/s, radius {projectile?.m_rayRadius:0.00} m, x{factor:0.00} ({data.GetTotalDamage():0}){(consume ? ", spear thrown away" : "")}");
             CombatLog.Dealt($"{p.Act.Id} → thrown {weapon.m_shared.m_name} (x{factor:0.00}, on impact)", data.GetTotalDamage());
             return true;
         }
@@ -741,6 +747,34 @@ namespace Eldenheim
         /// is the far end of the longest mesh's long axis from the grip (the
         /// model's origin).
         /// </summary>
+        private static readonly Dictionary<string, float> ThrownReaches = new Dictionary<string, float>();
+        /// <summary>Share of a thrown weapon's length its hit sphere's radius is. ESTIMATE, to tune by eye.</summary>
+        private const float ThrownReachShare = 0.4f;
+
+        /// <summary>A thrown weapon's hit sphere radius, from its model's longest side.</summary>
+        private static float ThrownReach(ItemDrop.ItemData weapon)
+        {
+            GameObject prefab = weapon.m_dropPrefab;
+            if (prefab == null)
+            {
+                return 0f;
+            }
+            if (!ThrownReaches.TryGetValue(prefab.name, out float reach))
+            {
+                float longest = 0f;
+                foreach (MeshFilter mf in prefab.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    if (mf.sharedMesh != null)
+                    {
+                        Vector3 size = Vector3.Scale(mf.sharedMesh.bounds.size, mf.transform.lossyScale);
+                        longest = Mathf.Max(longest, size.x, size.y, size.z);
+                    }
+                }
+                ThrownReaches[prefab.name] = reach = longest * ThrownReachShare;
+            }
+            return reach;
+        }
+
         public static void ShowThrownModel(Projectile projectile)
         {
             ZNetView nview = projectile != null ? projectile.GetComponent<ZNetView>() : null;
