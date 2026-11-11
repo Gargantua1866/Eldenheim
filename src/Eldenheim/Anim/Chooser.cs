@@ -419,6 +419,7 @@ namespace Eldenheim.Anim
                 _aim = Mathf.SmoothDamp(_aim, p.AimPitch, ref _aimRate, AIM_EASE, Mathf.Infinity, dt);
             }
             Aim(_aim);
+            HeadLookAt(dt);
 
             // The body's animations leave the fingers open: the grip is the
             // one in the stance's idle, carried on each hand's weapon bone.
@@ -616,6 +617,27 @@ namespace Eldenheim.Anim
                 _upper[i] = n != "Pelvis" && n != "RootPos" && n != "Master" && n != "RootRotY" && n != "RootRotXZ"
                             && !n.Contains("Thigh") && !n.Contains("Calf") && !n.Contains("Foot") && !n.Contains("Toe");
             }
+        }
+
+        /// <summary>Where the head looks (character space, Valheim's CharacterAnimEvent look); zero: ahead.</summary>
+        public Vector3 HeadLook;
+        /// <summary>No head look (attacks), as Valheim's while InAttack.</summary>
+        public bool HeadLookOff;
+        private float _headW;
+        /// <summary>Valheim's look-at weight (CharacterAnimEvent.m_lookWeight), clamp (m_lookClamp 0.5: 90°) and fade (1 a second).</summary>
+        private const float HEAD_WEIGHT = 0.5f, HEAD_CLAMP = 90f;
+
+        /// <summary>Valheim's head look (CharacterAnimEvent.UpdateLookat, animator IK): the head turned part way to the look.</summary>
+        private void HeadLookAt(float dt)
+        {
+            _headW = Mathf.MoveTowards(_headW, HeadLookOff ? 0f : HEAD_WEIGHT, dt);
+            UpperBones();
+            if (_headW <= 0f || _head < 0 || HeadLook.sqrMagnitude < 1e-4f)
+            {
+                return;
+            }
+            Vector3 dir = Vector3.RotateTowards(Vector3.forward, HeadLook.normalized, HEAD_CLAMP * Mathf.Deg2Rad, 0f);
+            Shown.Rot[_head] = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(Vector3.forward, dir), _headW) * Shown.Rot[_head];
         }
 
         private float _aim, _aimRate;

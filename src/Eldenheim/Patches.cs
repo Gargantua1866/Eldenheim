@@ -21,7 +21,6 @@ namespace Eldenheim
             Try(h, typeof(Character), "UpdateMotion", prefix: nameof(UpdateMotion));
             Try(h, typeof(Player), nameof(Player.SetControls), prefix: nameof(SetControls));
             Try(h, typeof(CharacterAnimEvent), "OnAnimatorIK", prefix: nameof(AnimatorIK));
-            Try(h, typeof(CharacterAnimEvent), "UpdateHeadRotation", prefix: nameof(HeadRotation));
             Try(h, typeof(Character), "RPC_Damage", prefix: nameof(RpcDamage), postfix: nameof(RpcDamaged));
             Try(h, typeof(Humanoid), "BlockAttack", prefix: nameof(BlockStart), postfix: nameof(BlockEnd));
             Try(h, typeof(EffectList), nameof(EffectList.Create), prefix: nameof(EffectCreate));
@@ -200,17 +199,9 @@ namespace Eldenheim
             block = blockHold = jump = crouch = run = autoRun = dodge = false;
         }
 
-        private static bool AnimatorIK(CharacterAnimEvent __instance)
-        {
-            Character c = Traverse.Create(__instance).Field("m_character").GetValue<Character>();
-            return !Controller.Posing(c);
-        }
+        private static readonly AccessTools.FieldRef<CharacterAnimEvent, Character> AnimCharacter = AccessTools.FieldRefAccess<CharacterAnimEvent, Character>("m_character");
 
-        private static bool HeadRotation(CharacterAnimEvent __instance)
-        {
-            Character c = Traverse.Create(__instance).Field("m_character").GetValue<Character>();
-            return !Controller.Posing(c);
-        }
+        private static bool AnimatorIK(CharacterAnimEvent __instance) => !Controller.Posing(AnimCharacter(__instance));
 
         private static bool RpcDamage(Character __instance, HitData hit, out float __state)
         {

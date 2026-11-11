@@ -64,6 +64,8 @@ namespace Eldenheim
         private Vector3 _tickFrom, _tickTo, _expected;
         private float _yawFrom, _yawTo;
 
+        private static readonly AccessTools.FieldRef<CharacterAnimEvent, Vector3> HeadLookDir = AccessTools.FieldRefAccess<CharacterAnimEvent, Vector3>("m_headLookDir");
+        private CharacterAnimEvent _animEvent;
         private static readonly AccessTools.FieldRef<Character, Vector3> RootMotion = AccessTools.FieldRefAccess<Character, Vector3>("m_rootMotion");
         private static readonly AccessTools.FieldRef<Character, Vector3> CurrentVel = AccessTools.FieldRefAccess<Character, Vector3>("m_currentVel");
         private static readonly AccessTools.FieldRef<Character, float> MaxAirAltitude = AccessTools.FieldRefAccess<Character, float>("m_maxAirAltitude");
@@ -82,7 +84,9 @@ namespace Eldenheim
         private static readonly AccessTools.FieldRef<Humanoid, ItemDrop.ItemData> LeftItem = AccessTools.FieldRefAccess<Humanoid, ItemDrop.ItemData>("m_leftItem");
         private static readonly AccessTools.FieldRef<VisEquipment, GameObject> RightInstance = AccessTools.FieldRefAccess<VisEquipment, GameObject>("m_rightItemInstance");
         private static readonly AccessTools.FieldRef<VisEquipment, GameObject> LeftInstance = AccessTools.FieldRefAccess<VisEquipment, GameObject>("m_leftItemInstance");
-        private static readonly System.Reflection.MethodInfo TakeInput = AccessTools.Method(typeof(PlayerController), "TakeInput");
+        private static readonly System.Func<PlayerController, bool, bool> TakeInput =
+            AccessTools.MethodDelegate<System.Func<PlayerController, bool, bool>>(AccessTools.Method(typeof(PlayerController), "TakeInput"));
+        private PlayerController _playerController;
 
         public static Controller For(VPlayer vp)
         {
@@ -1604,7 +1608,11 @@ namespace Eldenheim
                 return;
             }
             SyncEquipment(force: false);
-            bool input = TakeInput != null && (bool)TakeInput.Invoke(_vp.GetComponent<PlayerController>(), new object[] { false });
+            if (_playerController == null)
+            {
+                _playerController = _vp.GetComponent<PlayerController>();
+            }
+            bool input = TakeInput != null && _playerController != null && TakeInput(_playerController, false);
             // Valheim lets the player walk with the inventory or map open; only attacks are held back.
             bool menu = InventoryGui.IsVisible() || Minimap.IsOpen() || StoreGui.IsVisible() || Hud.IsPieceSelectionVisible();
             float camYaw = GameCamera.instance != null ? GameCamera.instance.transform.eulerAngles.y : transform.eulerAngles.y;
@@ -3423,6 +3431,14 @@ namespace Eldenheim
             {
                 return;
             }
+            if (_animEvent == null)
+            {
+                _animEvent = _vp.GetComponentInChildren<CharacterAnimEvent>();
+            }
+            // Valheim's head look (it still works out where, and syncs it to other players).
+            Vector3 headLook = _animEvent != null ? HeadLookDir(_animEvent) : Vector3.zero;
+            _chooser.HeadLook = headLook != Vector3.zero ? transform.InverseTransformDirection(headLook) : Vector3.zero;
+            _chooser.HeadLookOff = p.State == StateKind.Dead || p.State == StateKind.Act && p.Act.Id.IsAttack || p.AirAttackState.HasValue;
             if (!_chooser.Update(p, time, dt, alpha))
             {
                 return;
