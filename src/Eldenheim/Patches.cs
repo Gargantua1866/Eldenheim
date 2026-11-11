@@ -191,6 +191,14 @@ namespace Eldenheim
                     movedir = Commands.VDrive.Value;
                     run = Commands.VDriveRun;
                 }
+                if (Commands.VDodge && __instance == Player.m_localPlayer)
+                {
+                    dodge = true;
+                    if (movedir == Vector3.zero)
+                    {
+                        movedir = Vector3.forward;
+                    }
+                }
                 return;
             }
             // Every combat and movement button is Eldenheim's while it owns the player.

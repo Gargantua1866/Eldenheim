@@ -1806,9 +1806,11 @@ namespace Eldenheim
         private void LateUpdate()
         {
             WritePose();
-            if (Active)
+            if (Active && Commands.Tracing)
             {
                 ChestPitch = MeasureChest();
+                Transform head = _retarget?.Hips != null ? FindDeep(_retarget.Hips, "Head") : null;
+                HeadDebug = head != null ? $"{Vector3.SignedAngle(transform.forward, Vector3.ProjectOnPlane(head.forward, transform.up), transform.up):0},{head.forward.y * Mathf.Rad2Deg:0}" : "";
                 Transform lh = _retarget?.Hips != null ? FindDeep(_retarget.Hips, "LeftHand") : null;
                 Vector3 l = lh != null ? transform.InverseTransformPoint(lh.position) : Vector3.zero;
                 HandDebug = $"lhand {l.x:0.000},{l.y:0.000},{l.z:0.000} grip {_grip:0.00} raw {_gripRaw:0.00} erOff {_retarget?.GripErOff:0.000} armOut {_armOut:0.000}";
@@ -1923,6 +1925,8 @@ namespace Eldenheim
         /// <summary>Test harness: the chest's pitch against the body (degrees, up positive).</summary>
         internal float ChestPitch;
         internal string HandDebug;
+        /// <summary>Test harness (ytrace): the head bone's facing against the body (yaw, pitch in degrees).</summary>
+        internal string HeadDebug;
         private float _armOut, _gripRaw;
         private readonly Quaternion[] _leftArmShown = new Quaternion[3];
         private bool _leftArmHeld;

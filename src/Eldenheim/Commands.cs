@@ -35,8 +35,10 @@ namespace Eldenheim
         private static string _probeRun;
         private static List<float> _smooth;
         private static List<string> _ytrace;
+        internal static bool Tracing => _ytrace != null;
         internal static Vector3? VDrive;
         internal static bool VDriveRun;
+        internal static bool VDodge;
         /// <summary>Test harness (padcam): play as if on a gamepad, for CameraAutoRotation.</summary>
         internal static bool AsGamepad;
         private static Dictionary<string, float> _cape;
@@ -156,12 +158,12 @@ namespace Eldenheim
             if (_ytrace != null && Player.m_localPlayer != null && !(Controller.Local?.Active ?? false))
             {
                 Vector3 b = Player.m_localPlayer.transform.position;
-                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} vanilla");
+                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} vanilla dodge {Player.m_localPlayer.InDodge()} inv {Player.m_localPlayer.IsDodgeInvincible()}");
             }
             if (_ytrace != null && Player.m_localPlayer != null && (Controller.Local?.Active ?? false) && Controller.Local.Sim is Eldenheim.Sim.Player sp)
             {
                 Vector3 b = Player.m_localPlayer.transform.position;
-                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} sim y {sp.Pos.Y:0.000} simx {sp.Pos.X:0.000} {sp.State} {(sp.State == Eldenheim.Sim.StateKind.Act ? sp.Act.Id.ToString() : "")} speed {sp.Speed:0.0} slip {Controller.Local.Level?.Slippage:0.00} n.y {Controller.Local.Level?.GroundNormal.y:0.00} miss {Controller.Local.LastMiss.x:0.000},{Controller.Local.LastMiss.y:0.000},{Controller.Local.LastMiss.z:0.000} hips {Controller.Local.HipsY:0.000} aim {sp.AimPitch * Mathf.Rad2Deg:0} shown {Controller.Local.AimShown * Mathf.Rad2Deg:0.00} chest {Controller.Local.ChestPitch:0.00} yaw {sp.Yaw * Mathf.Rad2Deg:0} cam {GameCamera.instance?.transform.eulerAngles.y:0} look {Quaternion.LookRotation(Player.m_localPlayer.GetLookDir()).eulerAngles.y:0} radial {Hud.InRadial()} clip {Controller.Local.ShownClip} {Controller.Local.FeetDebug} {Controller.Local.HandDebug}");
+                _ytrace.Add($"{Time.time:0.000} body {b.x:0.00},{b.y:0.000},{b.z:0.00} sim y {sp.Pos.Y:0.000} simx {sp.Pos.X:0.000} {sp.State} {(sp.State == Eldenheim.Sim.StateKind.Act ? sp.Act.Id.ToString() : "")} speed {sp.Speed:0.0} slip {Controller.Local.Level?.Slippage:0.00} n.y {Controller.Local.Level?.GroundNormal.y:0.00} miss {Controller.Local.LastMiss.x:0.000},{Controller.Local.LastMiss.y:0.000},{Controller.Local.LastMiss.z:0.000} hips {Controller.Local.HipsY:0.000} aim {sp.AimPitch * Mathf.Rad2Deg:0} shown {Controller.Local.AimShown * Mathf.Rad2Deg:0.00} chest {Controller.Local.ChestPitch:0.00} yaw {sp.Yaw * Mathf.Rad2Deg:0} cam {GameCamera.instance?.transform.eulerAngles.y:0} look {Quaternion.LookRotation(Player.m_localPlayer.GetLookDir()).eulerAngles.y:0} radial {Hud.InRadial()} head {Controller.Local.HeadDebug} clip {Controller.Local.ShownClip} {Controller.Local.FeetDebug} {Controller.Local.HandDebug}");
             }
             if (_smooth != null && Player.m_localPlayer != null && Time.deltaTime > 0f)
             {
@@ -405,6 +407,11 @@ namespace Eldenheim
                     VDrive = new Vector3(F(a[1]), 0f, F(a[2]));
                     VDriveRun = a.Length > 4 && a[4] == "run";
                     Timers.Add((Time.time + F(a[3]), Time.frameCount + 3, () => VDrive = null));
+                    break;
+                case "vdodge":
+                    // vdodge SECS: hold Valheim's own dodge (with Eldenheim off).
+                    VDodge = true;
+                    Timers.Add((Time.time + F(a[1]), Time.frameCount + 3, () => VDodge = false));
                     break;
                 case "padcam":
                     AsGamepad = bool.Parse(a[1]);
