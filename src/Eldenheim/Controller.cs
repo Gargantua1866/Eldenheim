@@ -1612,8 +1612,8 @@ namespace Eldenheim
             // LeftJoystickInventory and DodgeInInventory let the stick walk and B dodge there.
             bool padInventory = !input && ZInput.IsGamepadActive() && InventoryGui.IsVisible() && !Menu.IsVisible()
                                 && (Settings.LeftJoystickInventory.Value || Settings.DodgeInInventory.Value);
-            _bindings.Gather(input || padInventory || Bindings.ForcedStick.HasValue || Bindings.Forced.Count > 0, menu, camYaw, padInventory);
-            LockSwitching(input && !menu);
+            _bindings.Gather(input || padInventory || Bindings.ForcedStick.HasValue || Bindings.Forced.Count > 0, menu, camYaw, padInventory, Hud.InRadial());
+            LockSwitching(input && !menu && !Hud.InRadial());
             // Every rendered frame, at this frame's point between sim ticks (the
             // physics step runs at 50 Hz: a pose made there steps visibly).
             Pose(Sim, poseDt, (_acc + Time.time - Time.fixedTime) / Consts.DT, _clock + (Time.time - Time.fixedTime));
@@ -1816,6 +1816,12 @@ namespace Eldenheim
             }
             // Locked on, the camera (which follows the player's look) turns to the target.
             Vector3? at = LockPoint();
+            if (!at.HasValue && Hud.InRadial())
+            {
+                // Valheim stops updating the look while its radial menu is open, and the eye
+                // (a child of the body) then turns with it: walking sideways spun player and camera.
+                _vp.SetMouseLook(Vector2.zero);
+            }
             if (at.HasValue)
             {
                 Vector3 dir = at.Value - _vp.GetEyePoint();

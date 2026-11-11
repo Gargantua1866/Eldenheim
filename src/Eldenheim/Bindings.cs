@@ -28,7 +28,7 @@ namespace Eldenheim
         private readonly HashSet<string> _blocked = new HashSet<string>();
         // Keys held as Eldenheim takes over (a roll out of a cart: Valheim's block + jump): ignored until let go.
         private readonly HashSet<string> _heldOver = new HashSet<string>();
-        private bool _hadInput, _hadMenu, _hadPadInventory;
+        private bool _hadInput, _hadMenu, _hadPadInventory, _radial;
         // Gamepad with the inventory open: only these actions (DodgeInInventory).
         private bool _padInventory;
         private static readonly string[] Actions =
@@ -69,6 +69,11 @@ namespace Eldenheim
             if (Forced.TryGetValue(action, out bool forced))
             {
                 return forced;
+            }
+            if (_radial)
+            {
+                // Valheim's radial menu has the buttons (as its own PlayerController); only walking goes on.
+                return false;
             }
             if (_padInventory && !(Settings.DodgeInInventory.Value && (action == "Dodge" || action == "Sprint")))
             {
@@ -151,8 +156,10 @@ namespace Eldenheim
         /// With a menu open (inventory, map...) the player can still move,
         /// dodge, sprint and jump, as in Valheim, but not attack or guard.
         /// </summary>
-        public void Gather(bool takeInput, bool menuOpen, float camYawUnityDeg, bool padInventory = false)
+        public void Gather(bool takeInput, bool menuOpen, float camYawUnityDeg, bool padInventory = false, bool radial = false)
         {
+            _radial = radial && Forced.Count == 0;
+            menuOpen |= radial;
             // Whenever control comes back from a menu, or the inventory's gamepad
             // mode starts or ends, what is held now belongs to the menu.
             if (takeInput && (!_hadInput || _hadMenu && !menuOpen || padInventory != _hadPadInventory))
