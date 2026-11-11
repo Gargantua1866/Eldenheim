@@ -1840,8 +1840,8 @@ namespace Eldenheim
 
         /// <summary>CameraAutoRotation: fastest turn (degrees a second, moving straight across the view at a run). ESTIMATE.</summary>
         private const float AutoRotateRate = 60f;
-        /// <summary>CameraAutoRotation: how long after the right stick turns the camera it is left alone (s). ESTIMATE.</summary>
-        private const float AutoRotateHold = 1f;
+        /// <summary>CameraAutoRotation: how long after the right stick turns the camera it is left alone (s).</summary>
+        private const float AutoRotateHold = 3f;
         private float _autoRotateIdle;
 
         /// <summary>

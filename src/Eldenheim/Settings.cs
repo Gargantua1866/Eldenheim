@@ -231,7 +231,7 @@ namespace Eldenheim
                 "On: the lock-on button does nothing when there is nothing to lock onto. Off (Elden Ring): it recentres the camera behind the player."));
             CameraAutoRotation = Bind(c, CONTROLS, "CameraAutoRotation", true, Controls(
                 "On (Elden Ring): with a gamepad and no lock-on, the camera gently turns to follow the way the player moves " +
-                "(not while the right stick turns it, nor for a moment after). Off: the camera turns only by the right stick."));
+                "(not while the right stick turns it, nor for 3 seconds after). Off: the camera turns only by the right stick."));
             LockSwitchFlick = Bind(c, CONTROLS, "LockOnSwitchFlick", 45,
                 Controls("Locked on, flick the mouse this far (pixels, within about a fifth of a second) left or right to switch to the next " +
                          "target that way; the right stick switches when pushed over. Higher: a bigger flick.",
