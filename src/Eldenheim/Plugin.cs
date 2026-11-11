@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Eldenheim
 {
-    [BepInPlugin(Guid, "Eldenheim", "0.6.37")]
+    [BepInPlugin(Guid, "Eldenheim", "0.6.38")]
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "com.gargantua.eldenheim";
