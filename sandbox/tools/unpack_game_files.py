@@ -155,7 +155,10 @@ def aes_decrypt(key: bytes, data: bytes, iv: bytes = None) -> bytes:
     Windows it uses the system's own AES (bcrypt.dll), so no extra package is
     needed; elsewhere pycryptodome."""
     if sys.platform != "win32":
-        from Crypto.Cipher import AES
+        try:
+            from Crypto.Cipher import AES
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(f"outside Windows the archives need pycryptodome: {sys.executable} -m pip install pycryptodome") from None
         return (AES.new(key, AES.MODE_ECB) if iv is None else AES.new(key, AES.MODE_CBC, iv)).decrypt(data)
     import ctypes
     from ctypes import byref, c_ulong, c_void_p, create_string_buffer, create_unicode_buffer, sizeof
