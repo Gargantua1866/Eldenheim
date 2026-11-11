@@ -1813,7 +1813,11 @@ namespace Eldenheim
                 HeadDebug = head != null ? $"{Vector3.SignedAngle(transform.forward, Vector3.ProjectOnPlane(head.forward, transform.up), transform.up):0},{head.forward.y * Mathf.Rad2Deg:0}" : "";
                 Transform lh = _retarget?.Hips != null ? FindDeep(_retarget.Hips, "LeftHand") : null;
                 Vector3 l = lh != null ? transform.InverseTransformPoint(lh.position) : Vector3.zero;
-                HandDebug = $"lhand {l.x:0.000},{l.y:0.000},{l.z:0.000} grip {_grip:0.00} raw {_gripRaw:0.00} erOff {_retarget?.GripErOff:0.000} armOut {_armOut:0.000}";
+                Transform rh = _retarget?.Hips != null ? FindDeep(_retarget.Hips, "RightHand") : null;
+                Vector3 r = rh != null ? transform.InverseTransformPoint(rh.position) : Vector3.zero;
+                int erRh = Clips.Bone("R_Hand");
+                Vector3 er = erRh >= 0 ? _chooser.Shown.Pos[erRh] : Vector3.zero;
+                HandDebug = $"rhand {r.x:0.00},{r.y:0.00},{r.z:0.00} er {er.x:0.00},{er.y:0.00},{er.z:0.00} lhand {l.x:0.000},{l.y:0.000},{l.z:0.000} grip {_grip:0.00} raw {_gripRaw:0.00} erOff {_retarget?.GripErOff:0.000} armOut {_armOut:0.000}";
             }
             if (Settings.Enabled.Value)
             {
