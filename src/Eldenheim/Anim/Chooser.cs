@@ -636,7 +636,10 @@ namespace Eldenheim.Anim
             {
                 return;
             }
-            Vector3 dir = Vector3.RotateTowards(Vector3.forward, HeadLook.normalized, HEAD_CLAMP * Mathf.Deg2Rad, 0f);
+            // Past the clamp the turn eases back to none at straight behind, as Unity's clamped look-at: no flip from side to side there.
+            float off = Vector3.Angle(Vector3.forward, HeadLook);
+            float turn = off <= HEAD_CLAMP ? off : HEAD_CLAMP * Mathf.Max(0f, 180f - off) / (180f - HEAD_CLAMP);
+            Vector3 dir = Vector3.RotateTowards(Vector3.forward, HeadLook.normalized, turn * Mathf.Deg2Rad, 0f);
             Shown.Rot[_head] = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(Vector3.forward, dir), _headW) * Shown.Rot[_head];
         }
 
