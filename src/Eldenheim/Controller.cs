@@ -1832,6 +1832,46 @@ namespace Eldenheim
             {
                 _vp.SetLookDir(transform.forward, 0.2f);
             }
+            else
+            {
+                AutoRotateCamera();
+            }
+        }
+
+        /// <summary>CameraAutoRotation: fastest turn (degrees a second, moving straight across the view at a run). ESTIMATE.</summary>
+        private const float AutoRotateRate = 60f;
+        /// <summary>CameraAutoRotation: how long after the right stick turns the camera it is left alone (s). ESTIMATE.</summary>
+        private const float AutoRotateHold = 1f;
+        private float _autoRotateIdle;
+
+        /// <summary>
+        /// CameraAutoRotation (gamepad, no lock-on): the look turns toward the way the body moves,
+        /// most when moving across the view, not at all moving straight away or toward it.
+        /// </summary>
+        private void AutoRotateCamera()
+        {
+            if (!Settings.CameraAutoRotation.Value || !(ZInput.IsGamepadActive() || Commands.AsGamepad) || Hud.InRadial() || InventoryGui.IsVisible() || Minimap.IsOpen())
+            {
+                return;
+            }
+            _autoRotateIdle = Mathf.Abs(ZInput.GetJoyRightStickX()) > 0.1f ? 0f : _autoRotateIdle + Time.deltaTime;
+            Vector3 moved = (_tickTo - _tickFrom) / Consts.DT;
+            moved.y = 0f;
+            float speed = moved.magnitude;
+            if (_autoRotateIdle < AutoRotateHold || speed < 0.5f)
+            {
+                return;
+            }
+            Vector3 look = _vp.GetLookDir();
+            look.y = 0f;
+            if (look.sqrMagnitude < 1e-4f)
+            {
+                return;
+            }
+            float off = Vector3.SignedAngle(look, moved, Vector3.up);
+            // Moving toward the camera (off near ±180) the sine is ~0 too: the camera doesn't swing round.
+            float rate = AutoRotateRate * Mathf.Sin(off * Mathf.Deg2Rad) * Mathf.Clamp01(speed / ErData.RUN_SPEED);
+            _vp.SetMouseLook(new Vector2(rate * Time.deltaTime, 0f));
         }
 
         // --- The physics step (Character.UpdateMotion is replaced by this) -------

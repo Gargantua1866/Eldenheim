@@ -184,6 +184,9 @@ More settings under F1 → 2 - Controls:
   jumping and animations take over (as with a tool or a bow).
 - `GuardTowardCamera`: while guarding unlocked, the player faces the crosshair
   and moves sideways and back as when locked on.
+- `CameraAutoRotation` (on, as in Elden Ring): with a gamepad and no lock-on,
+  the camera gently turns to follow the way you move; off, only the right stick
+  turns it.
 - `FreeAimVertical` (default 10): unlocked, attacks aim up or down the way the
   camera looks, by up to this many degrees; 0 turns it off.
 
