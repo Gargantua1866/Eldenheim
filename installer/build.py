@@ -33,7 +33,7 @@ if out.exists():
 # The plugin, built clean; only its own files are taken (the build also copies
 # any local game-derived data into the folder).
 shutil.rmtree(STAGE, ignore_errors=True)
-build_dir = STAGE / "dotnet"
+build_dir = STAGE / "built"  # not "dotnet": the .NET 10 CLI mangles a -p: value ending in \dotnet
 cmd = ["dotnet", "build", str(ROOT / "src" / "Eldenheim"), "-c", "Release", f"-p:PluginDir={build_dir}"]
 valheim = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("ValheimDir")
 if valheim:
