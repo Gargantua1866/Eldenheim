@@ -11,6 +11,10 @@ Showcase video
 
 [![Eldenheim showcase video](https://img.youtube.com/vi/2Gdm8KkQkZU/maxresdefault.jpg)](https://youtu.be/2Gdm8KkQkZU)
 
+> [!IMPORTANT]
+> A copy of Elden Ring is required to install Eldenheim. The mod's animations
+> and data are made from your own installed game files; none are shipped.
+
 ## How it is built
 
 | Part | What it is |
