@@ -224,9 +224,22 @@ pay for doesn't come out. Falls do Valheim's damage (100 at most). Only a fall
 that does more than 50 damage ends in the heavy landing.
 
 Each `Valheim:Name` default follows Valheim's own binding for that button.
-Under *2 - Controls*, `SeparateSprint` splits dodge and sprint into two
-buttons, and `DodgeTrigger` sets whether the dodge comes out on Release (as
-in Elden Ring) or on Press.
+
+**Separate dodge and sprint buttons.** By default one button does both: tap
+to dodge, hold to sprint. To give each its own button:
+
+1. Open F1 → *2 - Controls* and turn on `SeparateSprint`.
+2. Rebind one of the two, because both start on the same button. Under
+   *3 - Keyboard & Mouse*, `Dodge` and `Sprint` are both Left Shift; under
+   *4 - Gamepad*, `Dodge` is B and `Sprint` is L3, which is also `Crouch`.
+   Click "Set" next to `Dodge` or `Sprint` (or `Crouch`) and press the new
+   button.
+
+With them separate, the dodge button only dodges and the sprint button
+sprints as long as it is held. `DodgeTrigger` (also under *2 - Controls*) sets
+whether the dodge comes out on Release (as in Elden Ring) or on Press; Press
+fits separate buttons best, since with `SeparateSprint` off it leaves no way
+to sprint.
 With a gamepad and the inventory open, `LeftJoystickInventory` lets the left
 stick walk (only the D-pad moves the selection) and `DodgeInInventory` makes B
 dodge and sprint instead of closing it (Y closes it). A gamepad button still
