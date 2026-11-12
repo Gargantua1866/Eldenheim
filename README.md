@@ -284,7 +284,7 @@ recovery frame.
 
 ### Movesets
 
-The mod has 53 Elden Ring movesets, one per class below. Any of them, the
+The mod has 54 Elden Ring movesets, one per class below. Any of them, the
 Torch included, can be picked for any Valheim weapon type in F1 → 5 - Movesets,
 and for bare hands (BareHands, at the top: Fist, or a hand-to-hand art).
 
