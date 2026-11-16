@@ -195,13 +195,11 @@ weapon instead, Valheim-style. The guard can be raised while sprinting.
   direction held).
 - **Crouch attack:** light while crouching.
 - **Jump attacks:** light or heavy in the air, striking as you come down.
-  They also work when falling at least 1 m, off a ledge for one.
 - **Guard counter:** block a hit, then press heavy straight away: a quick,
   heavy counter that staggers well.
-- **Feints:** with the classes that have them (the Smithscript Dagger, the
-  Beast Claw and the Guardian's Swordspear among them), press dodge while
-  charging a heavy: you hop back instead of swinging. A light straight after
-  is the backstep attack.
+- **Feints:** with the classes that have them (Curved Swords, Thrusting Swords,
+  Heavy Thrusting Swords, Beast Claw, Smithscript Dagger, Great Katanas), press dodge while
+  charging a heavy: you hop back instead of swinging.
 - **Left-hand attacks:** with a weapon in the left hand, the guard button
   attacks with it. With two weapons of the same class, it plays the
   power-stance combo (and its running, rolling and backstep attacks).
