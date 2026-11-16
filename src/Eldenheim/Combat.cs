@@ -220,16 +220,18 @@ namespace Eldenheim
                 return;
             }
             Hit last = hits[hits.Length - 1];
-            if (p.Act.F < hits[0].From || p.Act.F > last.To + 6f)
+            if (p.Act.F < hits[0].From)
             {
                 return;
             }
             float r = Mathf.Max(blade.Radius, 0.05f) + 0.05f;
-            if (!Physics.CheckCapsule(blade.A, blade.B, r, GroundMask, QueryTriggerInteraction.Ignore))
+            // As Valheim's area attack, which always goes off: a swing that met neither a target nor the
+            // ground in its windows (a guard counter passing over a short enemy) slams under the head after.
+            if (p.Act.F <= last.To + 6f && !Physics.CheckCapsule(blade.A, blade.B, r, GroundMask, QueryTriggerInteraction.Ignore))
             {
                 return;
             }
-            Vector3 at = Physics.Raycast(blade.B + Vector3.up, Vector3.down, out RaycastHit ground, 1f + 2f * r, GroundMask) ? ground.point : blade.B;
+            Vector3 at = blade.B;
             _slammed.Add(-1);
             var hit = new ActiveHit { Attack = p.Act.Id.Moveset.Info.Attack, Mv = last.Mv, GuardDamage = last.GuardDamage, Stop = last.Stop, Radius = last.Radius };
             _hitThisWindow.Clear();
@@ -657,7 +659,7 @@ namespace Eldenheim
             b?.Item ?? (vp.m_unarmedWeapon != null ? vp.m_unarmedWeapon.m_itemData : null);
 
         private bool Strike(VPlayer vp, SimPlayer p, ItemDrop.ItemData weapon, ActiveHit hit, Collider collider, Vector3 bladeMid, float stop, List<string> log,
-                            Thrown thrown = null)
+                            Thrown thrown = null, bool slam = false)
         {
             GameObject go = Projectile.FindHitObject(collider);
             if (weapon == null || go == null || go == vp.gameObject || _hitThisWindow.Contains(go))
@@ -730,7 +732,7 @@ namespace Eldenheim
                 m_skillLevel = vp.GetSkillLevel(skill),
                 m_itemLevel = (short)weapon.m_quality,
                 m_itemWorldLevel = (byte)weapon.m_worldLevel,
-                m_pushForce = weapon.m_shared.m_attackForce * factor * (attack?.m_forceMultiplier ?? 1f) * Settings.WeaponKnockbackScale.Value,
+                m_pushForce = weapon.m_shared.m_attackForce * factor * PushScale(weapon, slam) * Settings.WeaponKnockbackScale.Value,
                 m_backstabBonus = weapon.m_shared.m_backstabBonus,
                 m_staggerMultiplier = (attack?.m_staggerMultiplier ?? 1f) * (thrown?.Guard ?? GuardScale(p, hit)) * Settings.PoiseScale.Value,
                 m_dodgeable = weapon.m_shared.m_dodgeable,
@@ -917,6 +919,25 @@ namespace Eldenheim
         /// <summary>The Abyssal Harpoon: its throw harpoons (SE_Harpooned).</summary>
         private static bool IsHarpoon(ItemDrop.ItemData weapon) => weapon?.m_shared.m_attackStatusEffect is SE_Harpooned;
 
+        /// <summary>Metres below a sledge's contact the slam still finds the ground (deeper: it stays where it struck, a flying target).</summary>
+        private const float SlamDrop = 2.5f;
+
+        /// <summary>
+        /// The push's multiplier on the weapon's Attack Force. A sledge pushes with its whole
+        /// shockwave only in a slam; its other blows with its swing's (Warfare's sledges: their
+        /// primary, a quarter of the shockwave's). Vanilla's sledges have no swing, their primary
+        /// is the shockwave: the same quarter of it.
+        /// </summary>
+        private static float PushScale(ItemDrop.ItemData weapon, bool slam)
+        {
+            Attack primary = weapon.m_shared.m_attack, area = AreaAttack(weapon);
+            if (area == null)
+            {
+                return primary?.m_forceMultiplier ?? 1f;
+            }
+            return slam ? area.m_forceMultiplier : area == primary ? 0.25f * area.m_forceMultiplier : primary.m_forceMultiplier;
+        }
+
         /// <summary>Valheim's sledges: their primary attack is an area attack (the shockwave).</summary>
         public static bool Slams(ItemDrop.ItemData weapon) => AreaAttack(weapon) != null;
 
@@ -1054,6 +1075,12 @@ namespace Eldenheim
         private bool Slam(VPlayer vp, SimPlayer p, ItemDrop.ItemData weapon, ActiveHit hit, Vector3 at, float stop, List<string> log, Thrown thrown = null)
         {
             Attack attack = AreaAttack(weapon);
+            // On the ground below where the head met something (a guard counter strikes high: its
+            // first contact is the target's head, and the sphere around it missed short enemies).
+            if (Physics.Raycast(at + Vector3.up * 0.5f, Vector3.down, out RaycastHit ground, SlamDrop + 0.5f, GroundMask, QueryTriggerInteraction.Ignore))
+            {
+                at = ground.point;
+            }
             foreach (EffectList list in new[] { weapon.m_shared.m_triggerEffect, attack.m_triggerEffect })
             {
                 Shockwave(list)?.Create(at, vp.transform.rotation, null, 1f, -1, vp.GetZDOID());
@@ -1063,7 +1090,7 @@ namespace Eldenheim
             int n = Physics.OverlapSphereNonAlloc(at, radius, _overlap, AttackMask, QueryTriggerInteraction.Ignore);
             for (int c = 0; c < n; c++)
             {
-                landed |= Strike(vp, p, weapon, hit, _overlap[c], at, stop, log, thrown);
+                landed |= Strike(vp, p, weapon, hit, _overlap[c], at, stop, log, thrown, slam: true);
             }
             log.Add($"slam: {weapon.m_shared.m_name} at {at:F1}, radius {radius:0.0} m, {(landed ? "hit" : "nothing")} around");
             AoeShown = (at, radius, Time.time);
@@ -1219,20 +1246,15 @@ namespace Eldenheim
                         Blade early = second == null ? swing : EarlyOwner(p, air, act, i, swing, second);
                         SwingSounds(vp, Item(vp, early), i, opens[i], f, earliest, charged, remote, IsThrow(p, i));
                     }
-                    // The trail starts a few frames before the window, as the vanilla clips' TrailOn comes
-                    // before their hit: ER's windows (3-5 frames) are only the end of the swing, too short a
-                    // stretch for a trail (Warfare's Doombringer and Blood Drinker drew none on some heavies).
-                    // Never before a kept charge is let go.
-                    float trailFrom = Mathf.Max(opens[i] - TrailLead, earliest);
-                    if (from < trailFrom && f >= trailFrom)
+                    if (from < opens[i] && f >= opens[i])
                     {
                         // Both hands moving: the trail is the window's own
-                        // weapon's (its owner, as for damage; before it opens, the side ER's blade is on).
+                        // weapon's (its owner, as for damage).
                         Blade by = swing;
                         if (second != null)
                         {
                             ActiveHit h = air ? (i == 0 ? p.ActiveHitNow() : p.AirBlowHit(i)) : p.WindowHit(i);
-                            by = h != null ? OwnerOf(h, Swinging.Both, swing, second) : EarlyOwner(p, air, act, i, swing, second);
+                            by = h != null ? OwnerOf(h, Swinging.Both, swing, second) : swing;
                         }
                         SwingLog = $"swing: {(air ? "air attack" : act.ToString())} at frame {f:0.0}, window {opens[i]:0.#}-{closes[i]:0.#} ({Item(vp, by)?.m_shared.m_name})";
                         // Once a swing: setting a trail's Emit again mid-swing restarts its point pool under its live points.
@@ -1255,9 +1277,6 @@ namespace Eldenheim
         }
 
         private readonly List<Blade> _trailed = new List<Blade>();
-
-        /// <summary>Frames a swing's trail starts before its hit window opens. ESTIMATE, from the vanilla clips' TrailOn (2-6 frames before their hit).</summary>
-        private const float TrailLead = 6f;
 
         public void StopTrails()
         {
