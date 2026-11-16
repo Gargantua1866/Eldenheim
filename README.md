@@ -308,7 +308,9 @@ recovery frame.
   in F1 → 5 - Movesets → TwoHandedSwords. Elden Ring's greatswords share a
   category but differ by style: 125 for the Claymore, 128 for the Knight's
   Greatsword family and the Inseparable Sword. Sledges → Great Hammer, axes →
-  Greataxe.
+  Greataxe. A sledge's shockwave comes with fully charged heavies, guard counters
+  and the Smithscript Hammer's throws (F1 → 6 - Combat → `SledgeAoeChargedOnly`;
+  off, uncharged heavies slam too, which is overpowered).
 - Paired weapons, in power stance: Skoll and Hati → Dagger, dual axes → the
   one-handed axes' class. Paired weapons can't be two-handed.
 - Therzie's Warfare: its weapons follow their Valheim type above, and those on
@@ -318,7 +320,7 @@ recovery frame.
   Each weapon's special (its secondary attack: the dwarven lightning, Doombringer's
   meteor, the Hellblade Cleavers' fire, the fists' roars) comes with the heavies;
   the big ones (a lightning strike, anything spawned or shot) with fully charged
-  heavies only. Its sledges slam on heavies as vanilla's do, and its on-hit
+  heavies only (the war pikes' dust burst too, and with guard counters). Its sledges slam as vanilla's do, and its on-hit
   effects (Vampirism, Bleeding...) count Eldenheim's hits, heavies as secondary attacks.
 - Equipping, sheathing (R) and drawing play Elden Ring's swap for the hand
   that changed.

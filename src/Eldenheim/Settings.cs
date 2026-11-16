@@ -42,6 +42,7 @@ namespace Eldenheim
 
         public static ConfigEntry<bool> ValheimIframes;
         public static ConfigEntry<bool> RemoveBlockForce;
+        public static ConfigEntry<bool> SledgeAoeChargedOnly;
         public static ConfigEntry<float> WeaponKnockbackScale;
         public static ConfigEntry<bool> ParrySound;
         public static ConfigEntry<int> ParryVolume;
@@ -307,6 +308,9 @@ namespace Eldenheim
                        "knockdown; smaller hits don't stagger.", new AcceptableValueRange<int>(0, 100)), balance);
             RemoveBlockForce = Bind(c, COMBAT, "RemoveBlockForce", true,
                 Combat("On (Elden Ring): blocking a melee blow doesn't push the attacker back. Off (Valheim): the guarding item's Block Force shoves it away."));
+            SledgeAoeChargedOnly = Bind(c, COMBAT, "SledgeAoeChargedOnly", true,
+                Combat("On: a sledgehammer's area blow (its shockwave) comes only with fully charged heavies, guard counters and " +
+                       "the Smithscript Hammer's throws. Off: uncharged heavies slam too, which is overpowered."));
             WeaponKnockbackScale = Bind(c, COMBAT, "WeaponKnockbackScale", 1f,
                 Combat("Multiplies how far Eldenheim's hits push what they strike (Valheim's weapon knockback, its Attack Force). 1 = Valheim's; " +
                        "lower it for weapons such as maces that shove enemies far away, 0 = no push.", new AcceptableValueRange<float>(0f, 2f)));

@@ -215,7 +215,7 @@ namespace Eldenheim
         {
             ItemDrop.ItemData weapon = Item(vp, blade);
             // (Not an attack that throws the sledge: it slams where it lands.)
-            if (hits.Length == 0 || _slammed.Count > 0 || blade == null || !blade.Valid || !Slams(weapon) || !Heavy(p) || Throws(p))
+            if (hits.Length == 0 || _slammed.Count > 0 || blade == null || !blade.Valid || !Slams(weapon) || !Slamming(p) || Throws(p))
             {
                 return;
             }
@@ -578,7 +578,7 @@ namespace Eldenheim
                 }
             }
             ItemDrop.ItemData mainItem = Item(vp, main);
-            if (_slamAt.HasValue && _slammed.Count == 0 && Slams(mainItem) && Heavy(p) && !Throws(p) && _slammed.Add(index))
+            if (_slamAt.HasValue && _slammed.Count == 0 && Slams(mainItem) && Slamming(p) && !Throws(p) && _slammed.Add(index))
             {
                 landed |= Slam(vp, p, mainItem, hit, _slamAt.Value, stop, log);
             }
@@ -689,7 +689,7 @@ namespace Eldenheim
             // measure (an Ancient tree: its bounds' centre is high in the crown): where the blade is.
             // Something solid was struck: a sledge's heavy slams here.
             _slamAt = _slamAt ?? point;
-            if (thrown == null && weapon.m_shared.m_attack?.m_attackType == Attack.AttackType.Area && !Heavy(p) && !_impactDone)
+            if (thrown == null && weapon.m_shared.m_attack?.m_attackType == Attack.AttackType.Area && !Slamming(p) && !_impactDone)
             {
                 // A sledge's hit sound is in its trigger list (its hit list is empty): a swing that doesn't slam still sounds it, once.
                 _impactDone = true;
@@ -948,6 +948,10 @@ namespace Eldenheim
             special.m_spawnOnTrigger != null || special.m_attackProjectile != null
             || (special.m_startEffect?.m_effectPrefabs?.Any(e => e?.m_prefab != null && e.m_prefab.name.IndexOf("aoe", System.StringComparison.OrdinalIgnoreCase) >= 0) ?? false);
 
+        /// <summary>A sledge's swing that slams: any heavy, or with SledgeAoeChargedOnly only fully charged heavies and guard counters (thrown sledges always slam).</summary>
+        private static bool Slamming(SimPlayer p) =>
+            Heavy(p) && (!Settings.SledgeAoeChargedOnly.Value || Charged(p) || p.State == StateKind.Act && p.Act.Id.IsAttack && p.Act.Id.Kind == AttackKind.GuardCounter);
+
         private static bool Charged(SimPlayer p) =>
             p.State == StateKind.Act && p.Act.Id.IsAttack && (p.Act.Id.Kind == AttackKind.Heavy1Charge || p.Act.Id.Kind == AttackKind.Heavy2Charge);
 
@@ -1014,7 +1018,9 @@ namespace Eldenheim
             special.m_trailStartEffect.Create(t.position, t.rotation, t, 1f, -1, vp.GetZDOID());
             // Effects Warfare puts in its own animation instead (the war pikes' dust burst): its
             // "Effect" events, played by the player's AnimationEffect as Valheim plays them.
-            AnimationEffect fx = vp.GetComponentInChildren<AnimationEffect>();
+            // Those only on fully charged heavies and guard counters: the burst is the big finish.
+            bool big = Charged(p) || p.Act.Id.Kind == AttackKind.GuardCounter;
+            AnimationEffect fx = big ? vp.GetComponentInChildren<AnimationEffect>() : null;
             foreach (AnimationEvent e in fx != null ? ClipEffects(special.m_attackAnimation) : new AnimationEvent[0])
             {
                 fx.Effect(e);
@@ -1224,13 +1230,11 @@ namespace Eldenheim
                             by = h != null ? OwnerOf(h, Swinging.Both, swing, second) : swing;
                         }
                         SwingLog = $"swing: {(air ? "air attack" : act.ToString())} at frame {f:0.0}, window {opens[i]:0.#}-{closes[i]:0.#} ({Item(vp, by)?.m_shared.m_name})";
-                        if (Settings.SwingTrails.Value)
+                        // Once a swing: setting a trail's Emit again mid-swing restarts its point pool under its live points.
+                        if (Settings.SwingTrails.Value && by != null && !_trailed.Contains(by))
                         {
                             Trails(by, true);
-                            if (by != null && !_trailed.Contains(by))
-                            {
-                                _trailed.Add(by);
-                            }
+                            _trailed.Add(by);
                         }
                         // Held a few frames past the window, as the vanilla clips do.
                         _trailUntil = Mathf.Max(_trailSerial == _actSerial ? _trailUntil : -1f, closes[i] + 4f);
@@ -1274,10 +1278,20 @@ namespace Eldenheim
                 // all but the scythe's) sit at the grip: ER's swings turn the blade about the hand, so
                 // a short window could pass with no point at all. Every centimetre instead.
                 TrailStep(trail) = Mathf.Min(TrailStep(trail), 0.01f * 0.01f);
+                if (on)
+                {
+                    // Emit restarts the trail's point pool from its first point, while the last swing's
+                    // points (alive 0.3 s) still use them: a swing chained straight after another (a
+                    // heavy's second) drew over its own fading points, garbled or not at all. A fresh start.
+                    ((System.Collections.IList)TrailPoints.GetValue(trail)).Clear();
+                    ((System.Collections.IList)TrailSmoothed.GetValue(trail)).Clear();
+                }
                 trail.Emit = on;
             }
         }
 
+        private static readonly System.Reflection.FieldInfo TrailPoints = AccessTools.Field(typeof(MeleeWeaponTrail), "m_points");
+        private static readonly System.Reflection.FieldInfo TrailSmoothed = AccessTools.Field(typeof(MeleeWeaponTrail), "m_smoothedPoints");
         private static readonly AccessTools.FieldRef<MeleeWeaponTrail, float> TrailStep = AccessTools.FieldRefAccess<MeleeWeaponTrail, float>("m_minVertexDistanceSqr");
 
         private static readonly string[] TrailLooks = { "_emitTime", "_material", "_lifeTime", "_colors", "_sizes", "_minVertexDistance", "_maxVertexDistance", "_maxAngle", "subdivisions" };
