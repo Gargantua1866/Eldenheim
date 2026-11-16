@@ -963,6 +963,23 @@ namespace Eldenheim
         }
 
         private int _specialStarted = -1;
+        private static readonly Dictionary<string, AnimationEvent[]> ClipEffectsOf = new Dictionary<string, AnimationEvent[]>();
+
+        /// <summary>A Warfare clip's (named as its attack, "..._TW") "Effect" events; none for any other.</summary>
+        private static AnimationEvent[] ClipEffects(string clip)
+        {
+            if (string.IsNullOrEmpty(clip) || !clip.EndsWith("_TW"))
+            {
+                return new AnimationEvent[0];
+            }
+            if (!ClipEffectsOf.TryGetValue(clip, out AnimationEvent[] events))
+            {
+                AnimationClip found = Resources.FindObjectsOfTypeAll<AnimationClip>().FirstOrDefault(c => c.name == clip);
+                ClipEffectsOf[clip] = events = found != null
+                    ? found.events.Where(e => e.functionName == "Effect" && e.objectReferenceParameter is GameObject).ToArray() : new AnimationEvent[0];
+            }
+            return events;
+        }
         private static readonly AccessTools.FieldRef<Humanoid, Attack> CurrentAttack = AccessTools.FieldRefAccess<Humanoid, Attack>("m_currentAttack");
         private static readonly AccessTools.FieldRef<Attack, ItemDrop.ItemData> AttackWeapon = AccessTools.FieldRefAccess<Attack, ItemDrop.ItemData>("m_weapon");
         private static readonly AccessTools.FieldRef<Humanoid, bool> CurrentSecondary = AccessTools.FieldRefAccess<Humanoid, bool>("m_currentAttackIsSecondary");
@@ -995,6 +1012,14 @@ namespace Eldenheim
             Transform t = vp.transform;
             special.m_triggerEffect.Create(t.position, t.rotation, t, 1f, -1, vp.GetZDOID());
             special.m_trailStartEffect.Create(t.position, t.rotation, t, 1f, -1, vp.GetZDOID());
+            // Effects Warfare puts in its own animation instead (the war pikes' dust burst): its
+            // "Effect" events, played by the player's AnimationEffect as Valheim plays them.
+            AnimationEffect fx = vp.GetComponentInChildren<AnimationEffect>();
+            foreach (AnimationEvent e in fx != null ? ClipEffects(special.m_attackAnimation) : new AnimationEvent[0])
+            {
+                fx.Effect(e);
+                log.Add($"special: {weapon.m_shared.m_name} animation effect {e.objectReferenceParameter?.name}");
+            }
             if (special.m_spawnOnTrigger != null)
             {
                 // As Attack.SpawnOnTrigger: at the character, facing its way, set up with the weapon.
@@ -1245,9 +1270,15 @@ namespace Eldenheim
             }
             foreach (MeleeWeaponTrail trail in b.Instance.GetComponentsInChildren<MeleeWeaponTrail>(true))
             {
+                // A trail adds a point only once its own object has moved 10 cm, and most (Warfare's
+                // all but the scythe's) sit at the grip: ER's swings turn the blade about the hand, so
+                // a short window could pass with no point at all. Every centimetre instead.
+                TrailStep(trail) = Mathf.Min(TrailStep(trail), 0.01f * 0.01f);
                 trail.Emit = on;
             }
         }
+
+        private static readonly AccessTools.FieldRef<MeleeWeaponTrail, float> TrailStep = AccessTools.FieldRefAccess<MeleeWeaponTrail, float>("m_minVertexDistanceSqr");
 
         private static readonly string[] TrailLooks = { "_emitTime", "_material", "_lifeTime", "_colors", "_sizes", "_minVertexDistance", "_maxVertexDistance", "_maxAngle", "subdivisions" };
 

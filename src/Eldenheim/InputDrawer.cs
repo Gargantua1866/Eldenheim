@@ -35,18 +35,21 @@ namespace Eldenheim
         private static void Draw(ConfigEntryBase entry, bool gamepad)
         {
             var e = (ConfigEntry<string>)entry;
+            // Only as a frame's GUI starts (its layout pass), before the row is laid out: switched
+            // between the layout and the repaint, the row would be drawn with other controls than
+            // were laid out, and IMGUI's error leaves it stuck without its buttons.
+            if (_listening == entry && Event.current.type == EventType.Layout && Time.frameCount > _startFrame && Pressed(gamepad, out string path))
+            {
+                _listening = null;
+                if (path != null)
+                {
+                    e.Value = path;
+                }
+            }
             GUILayout.BeginHorizontal();
             if (_listening == entry)
             {
                 GUILayout.Label(gamepad ? "Press a gamepad button... (Esc: cancel)" : "Press a key or mouse button... (Esc: cancel)", GUILayout.ExpandWidth(true));
-                if (Time.frameCount > _startFrame && Pressed(gamepad, out string path))
-                {
-                    if (path != null)
-                    {
-                        e.Value = path;
-                    }
-                    _listening = null;
-                }
             }
             else
             {
