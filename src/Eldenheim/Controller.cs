@@ -320,7 +320,7 @@ namespace Eldenheim
             }
             switch (item.m_shared.m_skillType)
             {
-                case Skills.SkillType.Swords: return Settings.ClassFor(twoHanded ? "TwoHandedSwords" : "OneHandedSwords");
+                case Skills.SkillType.Swords: return Settings.ClassFor(dual ? "PairedSwords" : twoHanded ? "TwoHandedSwords" : "OneHandedSwords");
                 case Skills.SkillType.Knives: return Settings.ClassFor("Knives");
                 case Skills.SkillType.Clubs: return Settings.ClassFor(twoHanded ? "TwoHandedClubs" : "OneHandedClubs");
                 // The dual axes are a power stance of one-handed axes.
@@ -813,10 +813,7 @@ namespace Eldenheim
                 .OrderByDescending(m => m.transform.TransformVector(m.sharedMesh.bounds.size).magnitude).FirstOrDefault();
             if (longest != null)
             {
-                Bounds mb = longest.sharedMesh.bounds;
-                Vector3 e = mb.size;
-                Vector3 meshAxis = e.x >= e.y && e.x >= e.z ? Vector3.right : e.y >= e.z ? Vector3.up : Vector3.forward;
-                Vector3 along = attach.InverseTransformDirection(longest.transform.TransformDirection(meshAxis)).normalized;
+                Vector3 along = LongAxis(longest, attach);
                 if (Vector3.Dot(along, axis) < 0f)
                 {
                     along = -along;
@@ -824,7 +821,19 @@ namespace Eldenheim
                 Plugin.Trace($"blade: {item?.m_shared.m_name} mesh axis {along:F3}, {Vector3.Angle(along, axis):0.0}° from the attach box axis");
                 axis = along;
             }
-            if (item != null && item.m_shared.m_skillType == Skills.SkillType.Spears && axis.z > 0f)
+            float colliderRadius = 0f;
+            if (item != null && item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeapon && ColliderLine(item, out float halfWidth) is Vector3 line
+                && Vector3.Angle(line, axis) is float off && off > 5f && off < 175f)
+            {
+                // The item's own long collider is its shaft or blade line: a part sticking out
+                // sideways (a scythe's blade, Warfare's Doombringer) tilts the mesh's axis.
+                // Measured over vanilla's two-handers, none is more than 5° off its collider.
+                Plugin.Trace($"blade: {item.m_shared.m_name} collider line {off:0.0}° from the mesh axis, used instead");
+                axis = line;
+                // Its width too: what sticks out sideways is left to ER's own blade (the Reaper's).
+                colliderRadius = halfWidth + 0.02f;
+            }
+            if (item != null && item.m_shared.m_skillType == Skills.SkillType.Spears && axis.z > 0f != HeadForward(item))
             {
                 // Every Valheim spear has its head towards the attach point's -Z (measured
                 // over all 14). Splitnir and the wooden spear sit centred on the hand, so
@@ -843,10 +852,95 @@ namespace Eldenheim
                 }
             }
             range = new Vector2(far * 0.3f, far);
-            radius = HeadRadius(attach, axis, far);
+            // At most a big sledge head's (vanilla's widest is the pickaxe, 0.73 m): a blade
+            // sticking out sideways (a scythe's 1.3 m) would make one giant sphere.
+            radius = colliderRadius > 0f ? colliderRadius : Mathf.Min(HeadRadius(attach, axis, far), MaxBladeRadius);
+            foreach (MeleeWeaponTrail trail in attach.GetComponentsInChildren<MeleeWeaponTrail>(true))
+            {
+                // A trail drawn past the item's end (Warfare's Giant Club: 2.5 m on a 1.45 m club) ends where it does.
+                Transform tip = TrailTip(trail);
+                float past = tip != null ? Vector3.Dot(attach.InverseTransformPoint(tip.position), axis) - far : 0f;
+                if (past > 0.1f)
+                {
+                    tip.position -= attach.TransformVector(axis * past);
+                    Plugin.Trace($"blade: {item?.m_shared.m_name} trail tip pulled in {past:0.00} m to the item's end");
+                }
+            }
             Plugin.Trace($"blade: {item?.m_shared.m_name} on {attach.name} bounds {bounds.center:F2} size {bounds.size:F2} → axis {axis}, reach {far:0.00} m, radius {radius:0.000} m");
             return axis;
         }
+
+        private const float MaxBladeRadius = 0.75f;
+        private static readonly AccessTools.FieldRef<MeleeWeaponTrail, Transform> TrailTip = AccessTools.FieldRefAccess<MeleeWeaponTrail, Transform>("_tip");
+
+        /// <summary>
+        /// A mesh's longest side as drawn, in space's coordinates: its scale
+        /// counts (Warfare's blackmetal greatswords are a small cube stretched
+        /// 69 times along Y, so the unscaled box points the wrong way).
+        /// </summary>
+        private static Vector3 LongAxis(MeshFilter mesh, Transform space)
+        {
+            Vector3 e = mesh.sharedMesh.bounds.size;
+            Vector3 x = space.InverseTransformVector(mesh.transform.TransformVector(new Vector3(e.x, 0f, 0f)));
+            Vector3 y = space.InverseTransformVector(mesh.transform.TransformVector(new Vector3(0f, e.y, 0f)));
+            Vector3 z = space.InverseTransformVector(mesh.transform.TransformVector(new Vector3(0f, 0f, e.z)));
+            Vector3 longest = x.sqrMagnitude >= y.sqrMagnitude && x.sqrMagnitude >= z.sqrMagnitude ? x : y.sqrMagnitude >= z.sqrMagnitude ? y : z;
+            return longest.normalized;
+        }
+
+        /// <summary>
+        /// The long axis of the item's own box or capsule collider (in its
+        /// attach point's space, towards the collider's middle), if it is at
+        /// least three times longer than it is wide (and half its width); null
+        /// otherwise. Read from the prefab: held copies lose their colliders.
+        /// </summary>
+        private static Vector3? ColliderLine(ItemDrop.ItemData item, out float halfWidth)
+        {
+            halfWidth = 0f;
+            Transform attach = item.m_dropPrefab != null ? item.m_dropPrefab.transform.Find("attach") : null;
+            if (attach == null)
+            {
+                return null;
+            }
+            foreach (Collider c in attach.GetComponentsInChildren<Collider>(true))
+            {
+                Vector3 size, centre;
+                if (c is BoxCollider box)
+                {
+                    size = box.size;
+                    centre = box.center;
+                }
+                else if (c is CapsuleCollider cap)
+                {
+                    size = Vector3.one * (2f * cap.radius);
+                    size[cap.direction] = Mathf.Max(cap.height, 2f * cap.radius);
+                    centre = cap.center;
+                }
+                else
+                {
+                    continue;
+                }
+                Vector3[] sides =
+                {
+                    attach.InverseTransformVector(c.transform.TransformVector(new Vector3(size.x, 0f, 0f))),
+                    attach.InverseTransformVector(c.transform.TransformVector(new Vector3(0f, size.y, 0f))),
+                    attach.InverseTransformVector(c.transform.TransformVector(new Vector3(0f, 0f, size.z))),
+                };
+                Vector3[] bySize = sides.OrderByDescending(v => v.sqrMagnitude).ToArray();
+                if (bySize[0].magnitude < 3f * bySize[1].magnitude)
+                {
+                    return null;
+                }
+                // Towards the collider's middle: the blade's side of the grip.
+                Vector3 line = bySize[0].normalized;
+                halfWidth = bySize[1].magnitude * 0.5f;
+                return Vector3.Dot(attach.InverseTransformPoint(c.transform.TransformPoint(centre)), line) < 0f ? -line : line;
+            }
+            return null;
+        }
+
+        /// <summary>Therzie's war pikes (Warfare) have their head towards the attach point's +Z, unlike every vanilla spear.</summary>
+        private static bool HeadForward(ItemDrop.ItemData item) => item.m_shared.m_attack?.m_attackAnimation == "WarpikeMain";
 
         private static IEnumerable<Vector3> Corners(Bounds b)
         {
@@ -885,7 +979,9 @@ namespace Eldenheim
             }
             if (right != null)
             {
-                Show(right, !twoLeft && SwapHiding() != SwapKind.NextWeapon && !thrownRight);
+                // A pair with a mesh for each hand loses only the thrown one (below).
+                bool gone = _pairHands != null && _pairHands.Length > 0 ? thrownRight && thrownLeft : thrownRight;
+                Show(right, !twoLeft && SwapHiding() != SwapKind.NextWeapon && !gone);
             }
             SheatheIdleHand(p);
             bool twinChanged = TwinBlade(p, twoLeft ? left : right, thrownLeft);
@@ -920,8 +1016,9 @@ namespace Eldenheim
                 {
                     _pairKey = Right.m_dropPrefab != null ? Right.m_dropPrefab.name : Right.m_shared.m_name;
                     _pairSplit = null;
-                    if (SkinnedCache.TryGetValue(_pairKey, out SkinnedPair pair))
+                    if (SkinnedCache.TryGetValue(_pairKey, out SkinnedPair pair) || NamedPair(right, out pair))
                     {
+                        SkinnedCache[_pairKey] = pair;
                         UsePair(pair);
                     }
                     else
@@ -932,6 +1029,15 @@ namespace Eldenheim
                 }
                 _rightBlade.Clear();
                 _leftBlade.Clear();
+                _pairHands = Hands.IsPair(Right) && right != null
+                    ? right.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(s => HandOf(s) != 0).ToArray<Renderer>() : null;
+            }
+            if (_pairHands != null && Shown(right))
+            {
+                foreach (Renderer r in _pairHands)
+                {
+                    r.enabled = !(HandOf(r) == 1 ? thrownRight : thrownLeft);
+                }
             }
             if (slide && !_skinnedBlades)
             {
@@ -1004,6 +1110,8 @@ namespace Eldenheim
         }
 
         private bool _leftShield, _skinnedBlades;
+        /// <summary>A held pair's skinned meshes named for one hand (empty: one mesh for both; null: not a pair).</summary>
+        private Renderer[] _pairHands;
         private string _pairKey;
         private PairSplit _pairSplit;
 
@@ -1033,6 +1141,36 @@ namespace Eldenheim
             _skinnedBlades = _bladeRight != Vector3.zero && _bladeLeft != Vector3.zero;
             _rightBlade.Clear();
             _leftBlade.Clear();
+        }
+
+        /// <summary>
+        /// A pair whose two weapons are separate skinned meshes named for
+        /// their hands (Therzie's Warfare: KnifeIron_Left, KnifeIron_Right):
+        /// each hand's blade is its own mesh, no need to wait for the hands to move apart.
+        /// </summary>
+        private bool NamedPair(GameObject instance, out SkinnedPair pair)
+        {
+            pair = default;
+            SkinnedMeshRenderer[] skins = instance != null ? instance.GetComponentsInChildren<SkinnedMeshRenderer>(true) : new SkinnedMeshRenderer[0];
+            SkinnedMeshRenderer r = skins.FirstOrDefault(s => HandOf(s) == 1), l = skins.FirstOrDefault(s => HandOf(s) == 2);
+            if (r == null || l == null)
+            {
+                return false;
+            }
+            Transform ra = _retarget.RightAttach, la = _retarget.LeftAttach;
+            pair.AxisRight = FitBlade(BakeSkinned(r.gameObject).Select(w => ra.InverseTransformPoint(w)).ToList(), out pair.OffsetRight, out pair.RangeRight, out pair.RadiusRight);
+            pair.AxisLeft = FitBlade(BakeSkinned(l.gameObject).Select(w => la.InverseTransformPoint(w)).ToList(), out pair.OffsetLeft, out pair.RangeLeft, out pair.RadiusLeft);
+            Plugin.Trace($"blade: {_pairKey} split by mesh names ({r.name}, {l.name}): right reach {pair.RangeRight.y:0.00} m, radius {pair.RadiusRight:0.000} m; " +
+                         $"left reach {pair.RangeLeft.y:0.00} m, radius {pair.RadiusLeft:0.000} m");
+            return pair.AxisRight != Vector3.zero && pair.AxisLeft != Vector3.zero;
+        }
+
+        /// <summary>Which hand a paired weapon's skinned mesh is for, by its name: 1 right, 2 left, 0 neither (or both).</summary>
+        internal static int HandOf(Renderer r)
+        {
+            string n = r.name.ToLowerInvariant();
+            bool right = n.Contains("right"), left = n.Contains("left");
+            return right == left ? 0 : right ? 1 : 2;
         }
 
         private void SplitPair()
@@ -1187,7 +1325,9 @@ namespace Eldenheim
             {
                 return range;
             }
-            float shift = tip - range.y;
+            // Never more than 0.4 m up the shaft (an atgeir's 0.37): Warfare's 3.5 m lances would
+            // be held a metre past their hand guard.
+            float shift = Mathf.Max(tip - range.y, -0.4f);
             if (!_poleRest.ContainsKey(instance))
             {
                 _poleRest[instance] = instance.transform.localPosition;
@@ -1249,6 +1389,13 @@ namespace Eldenheim
             Vector3 size = bounds.size, c = bounds.center;
             Vector3 face = size.x <= size.y && size.x <= size.z ? Vector3.right * Sign(c.x) :
                            size.y <= size.z ? Vector3.up * Sign(c.y) : Vector3.forward * Sign(c.z);
+            float thinnest = Mathf.Min(size.x, size.y, size.z), next = size.x + size.y + size.z - thinnest - Mathf.Max(size.x, size.y, size.z);
+            if (thinnest > 0.9f * next)
+            {
+                // No side clearly thinnest (Warfare's round Barnacle Shield, 0.96 against 0.99 m):
+                // the way every vanilla and Warfare shield faces, -Y.
+                face = Vector3.down;
+            }
             Plugin.Trace($"shield: bounds {bounds.center:F2} size {bounds.size:F2} → face {face}");
             return face;
         }
@@ -1478,6 +1625,11 @@ namespace Eldenheim
                 Show(item, true);
             }
             _hidden.Clear();
+            foreach (Renderer r in _pairHands?.Where(r => r != null) ?? Enumerable.Empty<Renderer>())
+            {
+                r.enabled = true;
+            }
+            _pairHands = null;
             _lastGrip = (Grip)255;
         }
 

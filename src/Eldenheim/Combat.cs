@@ -202,6 +202,7 @@ namespace Eldenheim
                     Window(vp, p, hit, i, hand, right, left, log);
                 }
             }
+            SpecialStart(vp, p, hand == Swinging.Left ? left : right, log);
             GroundSlam(vp, p, hits, hand == Swinging.Left ? left : right, log);
         }
 
@@ -406,7 +407,15 @@ namespace Eldenheim
             // ThrowSpears: the spear itself flies (the projectile drops it where
             // it lands) and leaves the inventory, as vanilla's throw does. Never
             // the harpoon: its line stays in the hand.
-            bool consume = Settings.ThrowSpears.Value && throwing.m_consumeItem && !IsHarpoon(weapon) && !borrowed;
+            // A stack of throwing weapons (Warfare's throwing axes) uses one up each throw, whatever ThrowSpears says.
+            bool consume = (Settings.ThrowSpears.Value || weapon.m_shared.m_maxStackSize > 1) && throwing.m_consumeItem && !IsHarpoon(weapon) && !borrowed;
+            ItemDrop.ItemData flying = weapon;
+            if (consume && weapon.m_stack > 1)
+            {
+                // The projectile carries (and may drop where it lands) one of them, not the stack.
+                flying = weapon.Clone();
+                flying.m_stack = 1;
+            }
             Projectile projectile = go.GetComponent<Projectile>();
             Vector3 velocity = dir * throwing.m_projectileVel;
             if (AimAt.HasValue && projectile != null && throwing.m_projectileVel > 0f)
@@ -420,7 +429,7 @@ namespace Eldenheim
                 // strikes about as far out as its head reaches from the middle.
                 projectile.m_rayRadius = Mathf.Max(projectile.m_rayRadius, ThrownReach(weapon));
             }
-            go.GetComponent<IProjectile>()?.Setup(vp, velocity, throwing.m_attackHitNoise, data, consume ? weapon : null, null);
+            go.GetComponent<IProjectile>()?.Setup(vp, velocity, throwing.m_attackHitNoise, data, consume ? flying : null, null);
             TamedOnlyThrows.RemoveWhere(k => k == null);
             if (weapon.m_shared.m_tamedOnly && projectile != null)
             {
@@ -507,6 +516,10 @@ namespace Eldenheim
             if (!_struck.TryGetValue(index, out HashSet<GameObject> struck))
             {
                 _struck[index] = struck = new HashSet<GameObject>();
+                if (index == 0)
+                {
+                    SpecialTrigger(vp, p, hit, Item(vp, main), log);
+                }
                 if (IsThrow(p, index) && Throw(vp, p, hit, Item(vp, main), log))
                 {
                     struck.Add(vp.gameObject);
@@ -676,11 +689,11 @@ namespace Eldenheim
             // measure (an Ancient tree: its bounds' centre is high in the crown): where the blade is.
             // Something solid was struck: a sledge's heavy slams here.
             _slamAt = _slamAt ?? point;
-            if (thrown == null && Slams(weapon) && !Heavy(p) && !_impactDone)
+            if (thrown == null && weapon.m_shared.m_attack?.m_attackType == Attack.AttackType.Area && !Heavy(p) && !_impactDone)
             {
                 // A sledge's hit sound is in its trigger list (its hit list is empty): a swing that doesn't slam still sounds it, once.
                 _impactDone = true;
-                foreach (EffectList list in new[] { weapon.m_shared.m_triggerEffect, weapon.m_shared.m_attack?.m_triggerEffect })
+                foreach (EffectList list in new[] { weapon.m_shared.m_triggerEffect, AreaAttack(weapon).m_triggerEffect })
                 {
                     Impact(list)?.Create(point, Quaternion.identity, null, 1f, -1, vp.GetZDOID());
                 }
@@ -705,7 +718,9 @@ namespace Eldenheim
             _hitThisWindow.Add(go);
 
             weapon.m_shared.m_hitEffect.Create(point, Quaternion.identity, null, 1f, -1, vp.GetZDOID());
-            attack?.m_hitEffect.Create(point, Quaternion.identity, null, 1f, -1, vp.GetZDOID());
+            // A special heavy hits with its own effects (Warfare's dwarven fists' flash); others with the primary's.
+            Attack special = thrown == null ? SpecialOf(p, weapon) : null;
+            (special ?? attack)?.m_hitEffect.Create(point, Quaternion.identity, null, 1f, -1, vp.GetZDOID());
 
             Skills.SkillType skill = weapon.m_shared.m_skillType;
             float factor = vp.GetRandomSkillFactor(skill) * (thrown?.Motion ?? MotionScale(p, hit)) * Settings.DamageScale.Value;
@@ -731,7 +746,28 @@ namespace Eldenheim
             data.SetAttacker(vp);
             data.m_damage.Modify(factor);
             vp.GetSEMan().ModifyAttack(skill, ref data);
-            destructible.Damage(data);
+            // Other mods read the attacker's current attack while it deals damage (Therzie's Warfare:
+            // Vampirism, Bleeding, its other on-hit effects, some on secondary attacks only). Eldenheim
+            // doesn't run Valheim's attacks: for this blow, the weapon's attack, the secondary for a heavy.
+            bool heavy = Heavy(p);
+            Attack wasAttack = CurrentAttack(vp);
+            bool wasSecondary = CurrentSecondary(vp);
+            Attack current = (heavy && weapon.m_shared.m_secondaryAttack != null ? weapon.m_shared.m_secondaryAttack : attack)?.Clone();
+            if (current != null)
+            {
+                AttackWeapon(current) = weapon;
+            }
+            CurrentAttack(vp) = current;
+            CurrentSecondary(vp) = heavy;
+            try
+            {
+                destructible.Damage(data);
+            }
+            finally
+            {
+                CurrentAttack(vp) = wasAttack;
+                CurrentSecondary(vp) = wasSecondary;
+            }
 
             if (weapon.m_shared.m_useDurability)
             {
@@ -837,6 +873,14 @@ namespace Eldenheim
             {
                 return;
             }
+            if (prefab.transform.Find("attach_skin") != null)
+            {
+                // A pair's stand model holds both weapons (Warfare's paired daggers): one flies.
+                foreach (Renderer r in model.GetComponentsInChildren<Renderer>())
+                {
+                    r.enabled = r.gameObject == longest.gameObject;
+                }
+            }
             Bounds b = longest.sharedMesh.bounds;
             Vector3 e = b.size;
             Vector3 axis = e.x >= e.y && e.x >= e.z ? new Vector3(e.x, 0f, 0f) : e.y >= e.z ? new Vector3(0f, e.y, 0f) : new Vector3(0f, 0f, e.z);
@@ -874,7 +918,95 @@ namespace Eldenheim
         private static bool IsHarpoon(ItemDrop.ItemData weapon) => weapon?.m_shared.m_attackStatusEffect is SE_Harpooned;
 
         /// <summary>Valheim's sledges: their primary attack is an area attack (the shockwave).</summary>
-        public static bool Slams(ItemDrop.ItemData weapon) => weapon?.m_shared.m_attack?.m_attackType == Attack.AttackType.Area;
+        public static bool Slams(ItemDrop.ItemData weapon) => AreaAttack(weapon) != null;
+
+        /// <summary>
+        /// A sledge's area attack: vanilla's primary, or the secondary of a club
+        /// whose primary is a swing (Therzie's Warfare sledges, its replacements for vanilla's too).
+        /// </summary>
+        private static Attack AreaAttack(ItemDrop.ItemData weapon)
+        {
+            Attack primary = weapon?.m_shared.m_attack, secondary = weapon?.m_shared.m_secondaryAttack;
+            return primary?.m_attackType == Attack.AttackType.Area ? primary
+                : weapon?.m_shared.m_skillType == Skills.SkillType.Clubs && secondary?.m_attackType == Attack.AttackType.Area ? secondary : null;
+        }
+
+        // --- Warfare's special heavies -------------------------------------------
+        //
+        // Therzie's Warfare gives each weapon's secondary attack its special: a
+        // lightning strike, Yagluth's meteor, a fire burst, a roar, a hit flash.
+        // Eldenheim's heavies are those attacks: they play its start effects as
+        // the heavy is let go and the rest as its first hit window opens.
+
+        /// <summary>A Warfare weapon whose secondary attack carries a special (not a throw, nor a sledge's slam, which Slam plays).</summary>
+        private static bool HasSpecial(ItemDrop.ItemData weapon) =>
+            weapon?.m_dropPrefab != null && weapon.m_dropPrefab.name.EndsWith("_TW") && weapon.m_shared.m_secondaryAttack != null
+            && !weapon.m_shared.m_secondaryAttack.m_consumeItem && !Slams(weapon);
+
+        /// <summary>The big specials (an area strike, something spawned, a projectile) wait for a fully charged heavy.</summary>
+        private static bool ChargedOnly(Attack special) =>
+            special.m_spawnOnTrigger != null || special.m_attackProjectile != null
+            || (special.m_startEffect?.m_effectPrefabs?.Any(e => e?.m_prefab != null && e.m_prefab.name.IndexOf("aoe", System.StringComparison.OrdinalIgnoreCase) >= 0) ?? false);
+
+        private static bool Charged(SimPlayer p) =>
+            p.State == StateKind.Act && p.Act.Id.IsAttack && (p.Act.Id.Kind == AttackKind.Heavy1Charge || p.Act.Id.Kind == AttackKind.Heavy2Charge);
+
+        /// <summary>This heavy plays the weapon's special: null if not.</summary>
+        private static Attack SpecialOf(SimPlayer p, ItemDrop.ItemData weapon)
+        {
+            if (p.AirAttackState.HasValue || p.State != StateKind.Act || !Heavy(p) || Throws(p) || !HasSpecial(weapon))
+            {
+                return null;
+            }
+            Attack special = weapon.m_shared.m_secondaryAttack;
+            return ChargedOnly(special) && !Charged(p) ? null : special;
+        }
+
+        private int _specialStarted = -1;
+        private static readonly AccessTools.FieldRef<Humanoid, Attack> CurrentAttack = AccessTools.FieldRefAccess<Humanoid, Attack>("m_currentAttack");
+        private static readonly AccessTools.FieldRef<Attack, ItemDrop.ItemData> AttackWeapon = AccessTools.FieldRefAccess<Attack, ItemDrop.ItemData>("m_weapon");
+        private static readonly AccessTools.FieldRef<Humanoid, bool> CurrentSecondary = AccessTools.FieldRefAccess<Humanoid, bool>("m_currentAttackIsSecondary");
+
+        /// <summary>The special's start effects, as the heavy is let go: a charged one at the end of its charge (let go earlier, it becomes the uncharged heavy), any other at once.</summary>
+        private void SpecialStart(VPlayer vp, SimPlayer p, Blade blade, List<string> log)
+        {
+            ItemDrop.ItemData weapon = Item(vp, blade);
+            Attack special = SpecialOf(p, weapon);
+            ActionDef def = special != null ? p.Act.Id.Def() : null;
+            // A projectile's own start effects go with it (Throw).
+            if (special == null || special.m_attackProjectile != null || _specialStarted == _actSerial || p.Act.F < (Charged(p) && def.HasCharge ? def.ChargeTo : 0f))
+            {
+                return;
+            }
+            _specialStarted = _actSerial;
+            Transform t = vp.transform;
+            special.m_startEffect.Create(t.position, t.rotation, t, 1f, -1, vp.GetZDOID());
+            log.Add($"special: {weapon.m_shared.m_name} start [{string.Join(",", special.m_startEffect.m_effectPrefabs.Where(e => e?.m_prefab != null).Select(e => e.m_prefab.name))}]");
+        }
+
+        /// <summary>The special's trigger: its effects, what it spawns and what it shoots, as the heavy's first window opens.</summary>
+        private void SpecialTrigger(VPlayer vp, SimPlayer p, ActiveHit hit, ItemDrop.ItemData weapon, List<string> log)
+        {
+            Attack special = SpecialOf(p, weapon);
+            if (special == null)
+            {
+                return;
+            }
+            Transform t = vp.transform;
+            special.m_triggerEffect.Create(t.position, t.rotation, t, 1f, -1, vp.GetZDOID());
+            special.m_trailStartEffect.Create(t.position, t.rotation, t, 1f, -1, vp.GetZDOID());
+            if (special.m_spawnOnTrigger != null)
+            {
+                // As Attack.SpawnOnTrigger: at the character, facing its way, set up with the weapon.
+                GameObject spawned = Object.Instantiate(special.m_spawnOnTrigger, t.position, Quaternion.LookRotation(t.forward));
+                spawned.GetComponent<IProjectile>()?.Setup(vp, t.forward, -1f, null, weapon, null);
+                log.Add($"special: {weapon.m_shared.m_name} spawns {special.m_spawnOnTrigger.name}");
+            }
+            if (special.m_attackProjectile != null)
+            {
+                Throw(vp, p, hit, weapon, log);
+            }
+        }
 
         private static bool Heavy(SimPlayer p)
         {
@@ -890,7 +1022,7 @@ namespace Eldenheim
         /// </summary>
         private bool Slam(VPlayer vp, SimPlayer p, ItemDrop.ItemData weapon, ActiveHit hit, Vector3 at, float stop, List<string> log, Thrown thrown = null)
         {
-            Attack attack = weapon.m_shared.m_attack;
+            Attack attack = AreaAttack(weapon);
             foreach (EffectList list in new[] { weapon.m_shared.m_triggerEffect, attack.m_triggerEffect })
             {
                 Shockwave(list)?.Create(at, vp.transform.rotation, null, 1f, -1, vp.GetZDOID());
@@ -911,7 +1043,7 @@ namespace Eldenheim
         private static bool IsSwing(EffectList.EffectData e) => e.m_prefab.name.IndexOf("swing", System.StringComparison.OrdinalIgnoreCase) >= 0;
 
         private static bool IsShockwave(EffectList list, ItemDrop.ItemData weapon, EffectList.EffectData e) =>
-            (list == weapon.m_shared.m_triggerEffect || list == weapon.m_shared.m_attack?.m_triggerEffect) && !IsSwing(e);
+            (list == weapon.m_shared.m_triggerEffect || list == AreaAttack(weapon)?.m_triggerEffect) && !IsSwing(e);
 
         /// <summary>A trigger list without its swing sound: the shockwave.</summary>
         private static EffectList Shockwave(EffectList list)

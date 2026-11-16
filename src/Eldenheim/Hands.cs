@@ -1,4 +1,5 @@
 using HarmonyLib;
+using System.Linq;
 using UnityEngine;
 
 namespace Eldenheim
@@ -23,6 +24,8 @@ namespace Eldenheim
         private static readonly AccessTools.FieldRef<Humanoid, ItemDrop.ItemData> RightItem = AccessTools.FieldRefAccess<Humanoid, ItemDrop.ItemData>("m_rightItem");
         private static readonly AccessTools.FieldRef<Humanoid, ItemDrop.ItemData> LeftItem = AccessTools.FieldRefAccess<Humanoid, ItemDrop.ItemData>("m_leftItem");
         private static readonly AccessTools.FieldRef<Humanoid, ItemDrop.ItemData> HiddenLeft = AccessTools.FieldRefAccess<Humanoid, ItemDrop.ItemData>("m_hiddenLeftItem");
+        private static readonly AccessTools.FieldRef<Humanoid, ItemDrop.ItemData> HiddenRight = AccessTools.FieldRefAccess<Humanoid, ItemDrop.ItemData>("m_hiddenRightItem");
+        private static readonly System.Reflection.MethodInfo ShowHandItems = AccessTools.Method(typeof(Humanoid), "ShowHandItems");
         private static readonly System.Reflection.MethodInfo SetupEquipment = AccessTools.Method(typeof(Humanoid), "SetupEquipment");
         private static readonly System.Reflection.MethodInfo TriggerEquipEffect = AccessTools.Method(typeof(Humanoid), "TriggerEquipEffect");
 
@@ -31,9 +34,14 @@ namespace Eldenheim
 
         private static ItemDrop.ItemData.ItemType Type(ItemDrop.ItemData i) => i.m_shared.m_itemType;
 
-        /// <summary>Knuckles/claws, Skoll and Hati, dual axes: one item for both hands.</summary>
+        /// <summary>
+        /// Knuckles/claws, Skoll and Hati, dual axes: one item for both hands.
+        /// Also any weapon worn as a skinned mesh on both arms (Therzie's
+        /// Warfare throwing axes, whose attacks aren't named "dual").
+        /// </summary>
         public static bool IsPair(ItemDrop.ItemData i) =>
-            i != null && (i.m_shared.m_skillType == Skills.SkillType.Unarmed || (i.m_shared.m_attack?.m_attackAnimation ?? "").Contains("dual"));
+            i != null && (i.m_shared.m_skillType == Skills.SkillType.Unarmed || (i.m_shared.m_attack?.m_attackAnimation ?? "").Contains("dual")
+                          || i.IsWeapon() && i.m_dropPrefab != null && i.m_dropPrefab.transform.Find("attach_skin") != null);
 
         /// <summary>A melee weapon Eldenheim plays that can be held in one hand (either hand).</summary>
         public static bool IsHandWeapon(ItemDrop.ItemData i) =>
@@ -87,7 +95,7 @@ namespace Eldenheim
         // weapon Valheim auto-equips on pickup goes to the right hand.
         private static void PickupPrefix() => _pickingUp = true;
         private static void PickupPostfix() => _pickingUp = false;
-        private static bool _pickingUp;
+        private static bool _pickingUp, _drawing;
         private static void LoadPostfix() => _loading = false;
 
         private static bool WantsLeft(ItemDrop.ItemData item)
@@ -99,6 +107,11 @@ namespace Eldenheim
             if (item == _showingLeft || _loading && item.m_customData.ContainsKey(LeftMark))
             {
                 return true;
+            }
+            if (_drawing)
+            {
+                // The right hand drawn for a new left item, with the modifier still held: it stays right.
+                return false;
             }
             return !_loading && !_pickingUp && Bindings.ModifierHeld();
         }
@@ -197,6 +210,27 @@ namespace Eldenheim
             if (!p.GetInventory().ContainsItem(item) || p.InAttack() || p.InDodge() || item.m_shared.m_useDurability && item.m_durability <= 0f)
             {
                 return false;
+            }
+            if (HiddenLeft(p) != null || HiddenRight(p) != null)
+            {
+                // Sheathed: the new item replaces the sheathed left one, and the right hand is drawn
+                // with it (drawing later would bring the old one back over the new).
+                ItemDrop.ItemData old = HiddenLeft(p);
+                HiddenLeft(p) = null;
+                if (old != null && old != item)
+                {
+                    old.m_equipped = false;
+                    old.m_customData.Remove(LeftMark);
+                }
+                _drawing = true;
+                try
+                {
+                    ShowHandItems?.Invoke(p, ShowHandItems.GetParameters().Select(a => a.HasDefaultValue ? a.DefaultValue : null).ToArray());
+                }
+                finally
+                {
+                    _drawing = false;
+                }
             }
             if (RightItem(p) == item)
             {

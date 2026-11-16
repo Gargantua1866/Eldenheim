@@ -56,10 +56,14 @@ namespace Eldenheim
                     _listening = entry;
                     // The click that started listening is not the new binding.
                     _startFrame = Time.frameCount + 1;
+                    // A text field keeping the keyboard focus would hand back its old text when it's
+                    // drawn again, undoing the new binding.
+                    GUIUtility.keyboardControl = 0;
                 }
                 if (GUILayout.Button("Default", GUILayout.ExpandWidth(false)))
                 {
                     e.Value = (string)e.DefaultValue;
+                    GUIUtility.keyboardControl = 0;
                 }
                 string typed = GUILayout.TextField(e.Value ?? "", GUILayout.ExpandWidth(true));
                 if (typed != e.Value)
