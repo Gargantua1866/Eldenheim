@@ -236,7 +236,8 @@ To put a melee weapon in the left hand, hold the `TwoHandModifier` button
 alternative gamepad layouts) while you equip it
 from the hotbar or the inventory (with the inventory open, hold Use and
 right-click the weapon; Use closes the inventory when let go, unless it
-equipped something). It replaces a shield or torch in that hand.
+equipped something). On a gamepad, hold Use a moment, then equip the weapon in
+the inventory as usual (a quick tap of Use still equips into the right hand). It replaces a shield or torch in that hand.
 Equipping without holding the button puts the weapon in the right hand, as
 usual.
 
