@@ -123,6 +123,7 @@ namespace Eldenheim
             }
             if (WantsLeft(item))
             {
+                Patches.UseEquipped = true;
                 __result = EquipLeft(p, item, triggerEquipEffects);
                 return false;
             }

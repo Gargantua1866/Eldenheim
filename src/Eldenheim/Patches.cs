@@ -40,6 +40,7 @@ namespace Eldenheim
             Try(h, typeof(Character), nameof(Character.SetTempParent), postfix: nameof(TempParent));
             Try(h, typeof(Projectile), "UpdateVisual", prefix: nameof(ProjectileVisual));
             Try(h, typeof(Projectile), "OnHit", postfix: nameof(ProjectileHit));
+            Try(h, typeof(Projectile), "IsValidTarget", postfix: nameof(ProjectileTarget));
             Try(h, typeof(MonoUpdaters), "FixedUpdate", prefix: nameof(PhysicsStep));
             Try(h, typeof(Attack), "AddHitPoint", prefix: nameof(AttackHitPoint));
             Try(h, typeof(MeleeWeaponTrail), nameof(MeleeWeaponTrail.CustomFixedUpdate), prefix: nameof(TrailStep));
@@ -136,6 +137,10 @@ namespace Eldenheim
                 Combat.ThrownImpact(__instance, collider, hitPoint);
             }
         }
+
+        /// <summary>A thrown butcher knife strikes only tamed creatures, as its swing does.</summary>
+        private static void ProjectileTarget(Projectile __instance, IDestructible destr, ref bool __result) =>
+            __result = Combat.ThrownTarget(__instance, destr) ?? __result;
 
         /// <summary>A catapult holds the player (Catapult.CollectLaunchCharacters) and throws it: Valheim's physics until a move.</summary>
         private static void TempParent(Character __instance)
@@ -268,11 +273,18 @@ namespace Eldenheim
         /// pressed this frame, so the stick walks instead of moving the selection
         /// (the D-pad does) and B dodges instead of closing it (Y does). B still
         /// closes the dialogs opened from it. (Patching ZInput.GetButtonDown did
-        /// nothing: the one-line method is inlined into its callers.)
+        /// nothing: the one-line method is inlined into its callers.) And on a
+        /// keyboard, Use closes it when let go (UseInInventory).
         /// </summary>
         private static void InventoryStart(InventoryGui __instance)
         {
-            if (!Settings.Enabled.Value || !InventoryGui.IsVisible() || !ZInput.IsGamepadActive())
+            if (!Settings.Enabled.Value || !InventoryGui.IsVisible())
+            {
+                _useInInventory = false;
+                return;
+            }
+            UseInInventory(__instance);
+            if (!ZInput.IsGamepadActive())
             {
                 return;
             }
@@ -289,6 +301,42 @@ namespace Eldenheim
                 && !gui.m_variantDialog.gameObject.activeSelf)
             {
                 ZInput.ResetButtonStatus("JoyButtonB");
+            }
+        }
+
+        private static readonly AccessTools.FieldRef<InventoryGui, int> ShownFrames = AccessTools.FieldRefAccess<InventoryGui, int>("m_shownFrames");
+        private static bool _useInInventory;
+
+        /// <summary>Set when an item goes to the left hand (Hands.EquipPrefix): the Use held for it doesn't close the inventory.</summary>
+        public static bool UseEquipped;
+
+        /// <summary>
+        /// With Use as the two-hand modifier, Use closes the inventory when let go
+        /// instead of when pressed, so Use held + right-click equips into the left
+        /// hand; a Use that equipped something leaves the inventory open.
+        /// </summary>
+        private static void UseInInventory(InventoryGui gui)
+        {
+            if (Settings.Keyboard["TwoHandModifier"].Value != "Valheim:Use")
+            {
+                _useInInventory = false;
+                return;
+            }
+            // Not the Use that opened it (a chest's): Update ignores that one too.
+            if (ZInput.GetButtonDown("Use") && ShownFrames(gui) >= 1)
+            {
+                // Read as just shown: Update skips its close check this frame.
+                ShownFrames(gui) = 0;
+                _useInInventory = true;
+                UseEquipped = false;
+            }
+            else if (_useInInventory && !ZInput.GetButton("Use"))
+            {
+                _useInInventory = false;
+                if (!UseEquipped)
+                {
+                    gui.Hide();
+                }
             }
         }
 
