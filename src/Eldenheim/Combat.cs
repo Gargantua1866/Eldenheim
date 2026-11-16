@@ -245,6 +245,13 @@ namespace Eldenheim
         private static readonly Dictionary<Projectile, System.Action<Collider, Vector3>> PendingSlams =
             new Dictionary<Projectile, System.Action<Collider, Vector3>>();
 
+        /// <summary>Thrown tamed-only weapons (the butcher knife) still in flight: they strike only tamed creatures.</summary>
+        private static readonly HashSet<Projectile> TamedOnlyThrows = new HashSet<Projectile>();
+
+        /// <summary>Projectile.IsValidTarget (on the thrower's client), for a thrown tamed-only weapon; null for any other projectile.</summary>
+        public static bool? ThrownTarget(Projectile projectile, IDestructible target) =>
+            TamedOnlyThrows.Contains(projectile) ? target is Character c && c.IsTamed() : (bool?)null;
+
         /// <summary>Projectile.OnHit (on the thrower's client): a thrown sledge slams where it struck.</summary>
         public static void ThrownImpact(Projectile projectile, Collider collider, Vector3 point)
         {
@@ -414,6 +421,11 @@ namespace Eldenheim
                 projectile.m_rayRadius = Mathf.Max(projectile.m_rayRadius, ThrownReach(weapon));
             }
             go.GetComponent<IProjectile>()?.Setup(vp, velocity, throwing.m_attackHitNoise, data, consume ? weapon : null, null);
+            TamedOnlyThrows.RemoveWhere(k => k == null);
+            if (weapon.m_shared.m_tamedOnly && projectile != null)
+            {
+                TamedOnlyThrows.Add(projectile);
+            }
             if (Slams(weapon) && projectile != null)
             {
                 // A thrown sledge (the Smithscript Hammer's throws) slams where it
@@ -643,7 +655,8 @@ namespace Eldenheim
             if (character != null)
             {
                 bool enemy = BaseAI.IsEnemy(vp, character) || character.GetBaseAI() != null && character.GetBaseAI().IsAggravatable();
-                if (!enemy && !(character.IsPlayer() && vp.IsPVPEnabled() && character.IsPVPEnabled()))
+                // As Attack.DoMeleeAttack: a tamed-only weapon (the butcher knife) strikes tamed creatures, and nothing else.
+                if (weapon.m_shared.m_tamedOnly ? !character.IsTamed() : !enemy && !(character.IsPlayer() && vp.IsPVPEnabled() && character.IsPVPEnabled()))
                 {
                     return false;
                 }
@@ -683,6 +696,10 @@ namespace Eldenheim
                     weapon.m_shared.m_hitTerrainEffect.Create(point, Quaternion.identity, null, 1f, -1, vp.GetZDOID());
                     attack?.m_hitTerrainEffect.Create(point, Quaternion.identity, null, 1f, -1, vp.GetZDOID());
                 }
+                return false;
+            }
+            if (character == null && weapon.m_shared.m_tamedOnly)
+            {
                 return false;
             }
             _hitThisWindow.Add(go);
