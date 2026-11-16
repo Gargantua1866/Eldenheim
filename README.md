@@ -176,11 +176,45 @@ button.
 | Lock on (with nothing to lock: recentre the camera) | Caps Lock | R3 |
 | Reverse backstep (not locked on): backstep, then at once press a direction (S goes forward, A right, D left) | — | — |
 | Switch lock-on target | flick the mouse left/right | right stick left/right |
-| Two-hand right / left | hold Valheim's Use + Attack / Block | hold Use (X) + RB / LB |
+| Two-hand right / left | hold Valheim's Use + Attack / Block | hold Valheim's Use (A; X in its alternative layouts) + RB / LB |
 
 With an empty left hand, the guard button throws a left punch, as in Elden
 Ring; `EmptyHandGuard` (F1 → 2 - Controls) makes it guard with the right
 weapon instead, Valheim-style. The guard can be raised while sprinting.
+
+### Attacks, for players new to Elden Ring
+
+- **Light attack combo:** press light attack again as each swing ends to go
+  on to the next (up to six, depending on the weapon).
+- **Heavy attack:** tap heavy for a quick heavy, or hold it to charge a
+  stronger one that staggers more; let go to swing. A second heavy straight
+  after the first plays the follow-up heavy.
+- **Running attacks:** light or heavy while sprinting.
+- **Rolling attack:** light straight after a roll.
+- **Backstep attack:** light straight after a backstep (the dodge with no
+  direction held).
+- **Crouch attack:** light while crouching.
+- **Jump attacks:** light or heavy in the air, striking as you come down.
+  They also work when falling at least 1 m, off a ledge for one.
+- **Guard counter:** block a hit, then press heavy straight away: a quick,
+  heavy counter that staggers well.
+- **Feints:** with the classes that have them (the Smithscript Dagger, the
+  Beast Claw and the Guardian's Swordspear among them), press dodge while
+  charging a heavy: you hop back instead of swinging. A light straight after
+  is the backstep attack.
+- **Left-hand attacks:** with a weapon in the left hand, the guard button
+  attacks with it. With two weapons of the same class, it plays the
+  power-stance combo (and its running, rolling and backstep attacks).
+- **Two-handing:** hold Use and press light attack (right weapon) or guard
+  (left weapon) to hold one weapon in both hands, with its two-handed
+  moveset. Do it again to go back to one hand.
+- **Smithscript throws:** the Smithscript Dagger throws itself on every
+  attack, and the Smithscript Spear, Axe and Hammer on their heavies. The
+  weapon reforms in your hand. Throws go where the camera looks, or at the
+  target when locked on.
+
+After a running, rolling, backstep or heavy attack, or a guard counter, a
+light attack goes on as the combo's second swing.
 
 More settings under F1 → 2 - Controls:
 
@@ -200,8 +234,11 @@ they strike (1 = Valheim's weapon knockback, 0 = none).
 ### Weapons in the off hand
 
 To put a melee weapon in the left hand, hold the `TwoHandModifier` button
-(by default Valheim's Use: E on keyboard, X on gamepad) while you equip it
-from the hotbar or the inventory. It replaces a shield or torch in that hand.
+(by default Valheim's Use: E on keyboard; A on gamepad, or X in Valheim's
+alternative gamepad layouts) while you equip it
+from the hotbar or the inventory (with the inventory open, hold Use and
+right-click the weapon; Use closes the inventory when let go, unless it
+equipped something). It replaces a shield or torch in that hand.
 Equipping without holding the button puts the weapon in the right hand, as
 usual.
 
@@ -281,6 +318,8 @@ recovery frame.
   gives Elden Ring's reach.
 - Left hand: shield → Shield, torch → Torch, a weapon → its class.
 - With a bow, staff or tool out, Valheim's own combat takes over.
+- Valheim's butcher knife damages only tamed creatures, whatever its moveset,
+  thrown or swung, as in vanilla.
 
 ### Movesets
 
