@@ -329,9 +329,14 @@ namespace Eldenheim
                 case Skills.SkillType.Spears: return Settings.ClassFor("Spears");
                 // Knuckles and claws (bare hands stay Fist).
                 case Skills.SkillType.Unarmed: return Settings.ClassFor("Knuckles");
-                default: return null;
+                default:
+                    int skill = (int)item.m_shared.m_skillType;
+                    return skill == ScytheSkill ? Settings.ClassFor("Scythes") : skill == ThrowingSkill ? Settings.ClassFor("ThrowingAxes") : null;
             }
         }
+
+        // Other mods' own skills (Therzie's Warfare, through SkillManager): the type is |stable hash of the skill's name|.
+        private static readonly int ScytheSkill = System.Math.Abs("Scythes".GetStableHashCode()), ThrowingSkill = System.Math.Abs("Throwing".GetStableHashCode());
 
         /// <summary>
         /// ER classes whose two hands don't share a handle: the fists (category

@@ -310,6 +310,9 @@ recovery frame.
   Greataxe.
 - Paired weapons, in power stance: Skoll and Hati → Dagger, dual axes → the
   one-handed axes' class. Paired weapons can't be two-handed.
+- Therzie's Warfare: its weapons follow their Valheim type above, and those on
+  its own skills have their own entries: scythes → Reaper (the dual scythes in
+  power stance), throwing axes → Smithscript Axe.
 - Equipping, sheathing (R) and drawing play Elden Ring's swap for the hand
   that changed.
 - Atgeirs and spears slide along the shaft so the hand grips the point that

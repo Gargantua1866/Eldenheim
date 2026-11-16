@@ -141,6 +141,8 @@ namespace Eldenheim
                                                    "(with ThrowSpears it flies off for good); any other class swings it. Cross-Naginata: a spear of its own style." },
             new[] { "Knuckles", "Claw", "Valheim's knuckles and claws, held two-handed. Claw: the claw category's moveset (the Hookclaws'). Raptor Talons: its style (a227). " +
                                         "Beast Claw: Shadow of the Erdtree's beast claws. Fist: the earlier moveset (the Caestus)." },
+            new[] { "Scythes", "Reaper", "Scythes from other mods (Therzie's Warfare; its dual scythes play the class's power stance). Reaper: Elden Ring's scythes." },
+            new[] { "ThrowingAxes", "Smithscript Axe", "Throwing axes from other mods (Therzie's Warfare). Smithscript Axe: its heavies throw the axe, which reforms in the hand." },
         };
 
         /// <summary>Menu names that differ from the sandbox class they play.</summary>
