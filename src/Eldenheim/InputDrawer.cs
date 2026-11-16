@@ -25,7 +25,37 @@ namespace Eldenheim
     internal static class InputDrawer
     {
         private static ConfigEntryBase _listening;
-        private static int _startFrame;
+        private static int _startFrame, _drawnFrame;
+        private static bool _escapePatched;
+
+        /// <summary>Waiting for a key, in a menu that's still drawn.</summary>
+        private static bool Listening => _listening != null && Time.frameCount - _drawnFrame <= 2;
+
+        /// <summary>
+        /// The Configuration Manager closes on Escape unless it thinks the console has it
+        /// (its ConsoleHandlesEscape): while a binding waits, it does, so Escape cancels only the
+        /// binding. Patched here, the first time the menu draws, as the manager is surely loaded by then.
+        /// </summary>
+        private static void PatchEscape()
+        {
+            _escapePatched = true;
+            try
+            {
+                var original = HarmonyLib.AccessTools.Method(HarmonyLib.AccessTools.TypeByName("ConfigurationManager.ConfigurationManager"), "ConsoleHandlesEscape");
+                if (original == null)
+                {
+                    Plugin.Report("patch: ConfigurationManager.ConsoleHandlesEscape not found (Escape closes the menu while setting a key)");
+                    return;
+                }
+                new HarmonyLib.Harmony(Plugin.Guid + ".escape").Patch(original, postfix: new HarmonyLib.HarmonyMethod(typeof(InputDrawer), nameof(KeepEscape)));
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Report($"patch: ConfigurationManager.ConsoleHandlesEscape failed: {ex.Message}");
+            }
+        }
+
+        private static void KeepEscape(ref bool __result) => __result |= Listening;
 
         public static ConfigurationManagerAttributes For(bool gamepad) => new ConfigurationManagerAttributes
         {
@@ -35,6 +65,16 @@ namespace Eldenheim
         private static void Draw(ConfigEntryBase entry, bool gamepad)
         {
             var e = (ConfigEntry<string>)entry;
+            if (!_escapePatched)
+            {
+                PatchEscape();
+            }
+            if (_listening != null && Time.frameCount - _drawnFrame > 2)
+            {
+                // The menu was closed while a binding waited (F1): it doesn't carry over to the next key.
+                _listening = null;
+            }
+            _drawnFrame = Time.frameCount;
             // Only as a frame's GUI starts (its layout pass), before the row is laid out: switched
             // between the layout and the repaint, the row would be drawn with other controls than
             // were laid out, and IMGUI's error leaves it stuck without its buttons.
