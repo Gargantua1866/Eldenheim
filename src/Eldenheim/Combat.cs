@@ -435,7 +435,7 @@ namespace Eldenheim
             {
                 TamedOnlyThrows.Add(projectile);
             }
-            if (Slams(weapon) && projectile != null)
+            if (Slams(weapon) && projectile != null && (!Settings.SledgeAoeChargedOnly.Value || Charged(p)))
             {
                 // A thrown sledge (the Smithscript Hammer's throws) slams where it
                 // lands: its shockwave and area blow, scaled as this hit's are.
@@ -1219,15 +1219,20 @@ namespace Eldenheim
                         Blade early = second == null ? swing : EarlyOwner(p, air, act, i, swing, second);
                         SwingSounds(vp, Item(vp, early), i, opens[i], f, earliest, charged, remote, IsThrow(p, i));
                     }
-                    if (from < opens[i] && f >= opens[i])
+                    // The trail starts a few frames before the window, as the vanilla clips' TrailOn comes
+                    // before their hit: ER's windows (3-5 frames) are only the end of the swing, too short a
+                    // stretch for a trail (Warfare's Doombringer and Blood Drinker drew none on some heavies).
+                    // Never before a kept charge is let go.
+                    float trailFrom = Mathf.Max(opens[i] - TrailLead, earliest);
+                    if (from < trailFrom && f >= trailFrom)
                     {
                         // Both hands moving: the trail is the window's own
-                        // weapon's (its owner, as for damage).
+                        // weapon's (its owner, as for damage; before it opens, the side ER's blade is on).
                         Blade by = swing;
                         if (second != null)
                         {
                             ActiveHit h = air ? (i == 0 ? p.ActiveHitNow() : p.AirBlowHit(i)) : p.WindowHit(i);
-                            by = h != null ? OwnerOf(h, Swinging.Both, swing, second) : swing;
+                            by = h != null ? OwnerOf(h, Swinging.Both, swing, second) : EarlyOwner(p, air, act, i, swing, second);
                         }
                         SwingLog = $"swing: {(air ? "air attack" : act.ToString())} at frame {f:0.0}, window {opens[i]:0.#}-{closes[i]:0.#} ({Item(vp, by)?.m_shared.m_name})";
                         // Once a swing: setting a trail's Emit again mid-swing restarts its point pool under its live points.
@@ -1250,6 +1255,9 @@ namespace Eldenheim
         }
 
         private readonly List<Blade> _trailed = new List<Blade>();
+
+        /// <summary>Frames a swing's trail starts before its hit window opens. ESTIMATE, from the vanilla clips' TrailOn (2-6 frames before their hit).</summary>
+        private const float TrailLead = 6f;
 
         public void StopTrails()
         {
@@ -1278,6 +1286,10 @@ namespace Eldenheim
                 // all but the scythe's) sit at the grip: ER's swings turn the blade about the hand, so
                 // a short window could pass with no point at all. Every centimetre instead.
                 TrailStep(trail) = Mathf.Min(TrailStep(trail), 0.01f * 0.01f);
+                if (!on && Settings.EventLog.Value)
+                {
+                    Plugin.Trace($"trail: {b.Item?.m_shared.m_name} {trail.name} drew {((System.Collections.IList)TrailPoints.GetValue(trail)).Count} points");
+                }
                 if (on)
                 {
                     // Emit restarts the trail's point pool from its first point, while the last swing's

@@ -309,7 +309,7 @@ recovery frame.
   category but differ by style: 125 for the Claymore, 128 for the Knight's
   Greatsword family and the Inseparable Sword. Sledges → Great Hammer, axes →
   Greataxe. A sledge's shockwave comes with fully charged heavies, guard counters
-  and the Smithscript Hammer's throws (F1 → 6 - Combat → `SledgeAoeChargedOnly`;
+  and the Smithscript Hammer's fully charged throws (F1 → 6 - Combat → `SledgeAoeChargedOnly`;
   off, uncharged heavies slam too, which is overpowered).
 - Paired weapons, in power stance: Skoll and Hati → Dagger, dual axes → the
   one-handed axes' class. Paired weapons can't be two-handed.
