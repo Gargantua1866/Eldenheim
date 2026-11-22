@@ -490,30 +490,15 @@ namespace Eldenheim
         private int _hitsSerial = -1;
         private bool _resumedSwing;
 
-        /// <summary>
-        /// The hand a window belongs to. In power stance (and with fists or
-        /// paired weapons) both hands move, but each of ER's hits is one
-        /// weapon's: the Valheim blade nearest ER's own capsule as the window
-        /// opens. Only that weapon strikes in it, with its own damage (when the
-        /// hands hold different weapons).
-        /// </summary>
-        public static Blade OwnerOf(ActiveHit hit, Swinging hand, Blade right, Blade left)
-        {
-            if (hand != Swinging.Both)
-            {
-                return hand == Swinging.Left ? left : right;
-            }
-            int last = SimPlayer.SWEEP_STEPS - 1;
-            Vector3 mid = (Space.ToUnity(hit.SweepA[last]) + Space.ToUnity(hit.SweepB[last])) * 0.5f;
-            return Nearer(right, left, mid);
-        }
-
         /// <summary>One hit window's sweeps this tick. True if it struck something new.</summary>
         private bool Window(VPlayer vp, SimPlayer p, ActiveHit hit, int index, Swinging hand, Blade right, Blade left, List<string> log)
         {
             if (!_owners.TryGetValue(index, out Blade main))
             {
-                _owners[index] = main = OwnerOf(hit, hand, right, left);
+                // Keys: ground windows by index, the air swing 15 (16 its second blade), its later blows 20 on.
+                bool air = p.AirAttackState.HasValue;
+                int window = index >= 20 ? index - 20 : index >= 15 ? 0 : index;
+                _owners[index] = main = hand == Swinging.Both ? EarlyOwner(p, air, p.Act.Id, window, right, left) : hand == Swinging.Left ? left : right;
             }
             if (!_struck.TryGetValue(index, out HashSet<GameObject> struck))
             {
@@ -1253,8 +1238,7 @@ namespace Eldenheim
                         Blade by = swing;
                         if (second != null)
                         {
-                            ActiveHit h = air ? (i == 0 ? p.ActiveHitNow() : p.AirBlowHit(i)) : p.WindowHit(i);
-                            by = h != null ? OwnerOf(h, Swinging.Both, swing, second) : swing;
+                            by = EarlyOwner(p, air, act, i, swing, second);
                         }
                         SwingLog = $"swing: {(air ? "air attack" : act.ToString())} at frame {f:0.0}, window {opens[i]:0.#}-{closes[i]:0.#} ({Item(vp, by)?.m_shared.m_name})";
                         // Once a swing: setting a trail's Emit again mid-swing restarts its point pool under its live points.
@@ -1655,6 +1639,17 @@ namespace Eldenheim
         /// Which hand a window will belong to, before it opens (for its sound):
         /// the side of the body ER's own blade is on as the window opens.
         /// </summary>
+        private static float OffLine(Vector3 p, Vector3 a, Vector3 b) =>
+            (b - a).sqrMagnitude < 1e-8f ? Vector3.Distance(p, a) : Vector3.Cross(b - a, p - a).magnitude / (b - a).magnitude;
+
+        private static readonly Anim.ErPose HiltPose = new Anim.ErPose(64);
+
+        /// <summary>
+        /// With both hands moving (power stance), whose weapon a hit window is:
+        /// the hand whose weapon, in ER's own animation as the window opens, lies
+        /// on the window's line. The same for its sounds, trail and damage, from
+        /// before the window opens.
+        /// </summary>
         private static Blade EarlyOwner(SimPlayer p, bool air, ActionId act, int window, Blade right, Blade left)
         {
             if (left == null || !left.Valid)
@@ -1665,16 +1660,52 @@ namespace Eldenheim
             {
                 return left;
             }
-            float[][] blade = !air ? act.Def().Hits[window].Blade
-                : window == 0 ? p.AirAttackState.Value.Def.Blade
-                : SimPlayer.LaterBlow(p.AirAttackState.Value, out ActionDef later) >= 0 && window < later.Hits.Length ? later.Hits[window].Blade : null;
+            float[][] blade;
+            string source;
+            float from;
+            if (!air)
+            {
+                Hit hit = act.Def().Hits[window];
+                (blade, source, from) = (hit.Blade, act.Def().Source, hit.From);
+            }
+            else if (window == 0)
+            {
+                AirAttackDef d = p.AirAttackState.Value.Def;
+                (blade, source, from) = (d.Blade, d.Source, d.From);
+            }
+            else if (SimPlayer.LaterBlow(p.AirAttackState.Value, out ActionDef later) >= 0 && window < later.Hits.Length)
+            {
+                (blade, source, from) = (later.Hits[window].Blade, later.Source, later.Hits[window].From);
+            }
+            else
+            {
+                return right;
+            }
             if (blade == null || blade.Length == 0)
             {
                 return right;
             }
-            // The sim's X runs to the character's left.
-            float side = blade[0][0] + blade[0][3];
-            return side > 0f ? left : right;
+            Vector3 hilt = Space.ToUnity(new Vec3(blade[0][0], blade[0][1], blade[0][2]));
+            Vector3 tip = Space.ToUnity(new Vec3(blade[0][3], blade[0][4], blade[0][5]));
+            Anim.Clips clips = Controller.Clips;
+            Anim.Clip clip = clips?.Get(source);
+            int rw = clips?.Bone("R_Weapon") ?? -1, lw = clips?.Bone("L_Weapon") ?? -1;
+            if (clip != null && rw >= 0 && lw >= 0 && clips.Bones.Length <= HiltPose.Pos.Length)
+            {
+                clips.Sample(clip, from, false, HiltPose);
+                Vector3 r = HiltPose.Pos[rw], l = HiltPose.Pos[lw];
+                // The striking weapon's grip lies on its own line (a long haft's line starts well up it).
+                float dr = OffLine(r, hilt, tip), dl = OffLine(l, hilt, tip);
+                if (Mathf.Abs(dr - dl) < 0.05f)
+                {
+                    // Both on it (weapons crossed): the hand nearer the line's start.
+                    dr = Vector3.Distance(r, hilt);
+                    dl = Vector3.Distance(l, hilt);
+                }
+                return dl < dr ? left : right;
+            }
+            // No clip: the side of the body the line starts on (Unity's X runs to the character's right).
+            return hilt.x < 0f ? left : right;
         }
 
         private static readonly AccessTools.FieldRef<ZSFX, float> VolumeModifier = AccessTools.FieldRefAccess<ZSFX, float>("m_volumeModifier");
