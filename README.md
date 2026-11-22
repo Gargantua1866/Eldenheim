@@ -114,7 +114,7 @@ heavy or guard counter is the chain's second swing, and after a feint it's the
 backstep's attack. Milady's attacks say themselves where they go on (its
 two-handed run heavy into the fourth swing, for one).
 
-### Attacks, for players new to Elden Ring
+### Attacks list for players new to Elden Ring
 
 - **Light attack combo:** press light attack again as each swing ends to go
   on to the next (up to six, depending on the weapon).
