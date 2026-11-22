@@ -58,9 +58,9 @@ tools but nothing from Elden Ring, so it can be shared.
 
 ### Movesets
 
-Eldenheim has 57 Elden Ring movesets. Any can be picked for any Valheim weapon type in F1 → 5 - Movesets
+Eldenheim has 57 Elden Ring movesets. Any can be picked for any Valheim weapon class in F1 → 5 - Movesets
 
-| Elden Ring weapon type | Classes |
+| Elden Ring weapon class | Movesets |
 |---|---|
 | Daggers | Dagger, Erdsteel Dagger, Main-gauche |
 | Throwing blades | Smithscript Dagger |
