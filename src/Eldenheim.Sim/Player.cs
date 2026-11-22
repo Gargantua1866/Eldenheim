@@ -187,6 +187,12 @@ namespace Eldenheim.Sim
         public float HeavyDebounce;
         /// <summary>Paired weapons (one item in both hands, like claws): the light button plays the power-stance attacks and the guard button guards.</summary>
         public bool PairedOnLight;
+        /// <summary>
+        /// Eldenheim: a left-hand class that also power-stances with one other
+        /// right-hand class (Elden Ring's Main-gauche with a thrusting sword),
+        /// playing the right weapon's power stance; -1 for none.
+        /// </summary>
+        public int PairsLeft = -1, PairsRight = -1;
         /// <summary>Rolls and backsteps are invincible from their start for this many frames instead of ER's own windows (0: ER's).</summary>
         public float DodgeIframes;
         /// <summary>
@@ -320,7 +326,7 @@ namespace Eldenheim.Sim
             }
         }
 
-        public bool Paired() => Grip == Grip.OneHand && Left == Weapon && Moveset().Has(AttackKind.PairedLight1);
+        public bool Paired() => Grip == Grip.OneHand && (Left == Weapon || Left == PairsLeft && Weapon == PairsRight) && Moveset().Has(AttackKind.PairedLight1);
 
         public LeftButton LeftButtonDoes() =>
             Grip == Grip.OneHand && Left != ErData.SHIELD && !GuardsWithRight() ? LeftButton.Attack : LeftButton.Guard;

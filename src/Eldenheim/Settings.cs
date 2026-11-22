@@ -86,12 +86,12 @@ namespace Eldenheim
         public static readonly string[] ErClasses =
         {
             // In the order Elden Ring lists weapon types; a class's own styles after it.
-            "Dagger", "Erdsteel Dagger",
+            "Dagger", "Erdsteel Dagger", "Main-gauche",
             "Smithscript Dagger",
             "Longsword", "Warhawk's Talon", "Carian Knight's Sword",
             "Milady",
             "Claymore", "Knight's Greatsword",
-            "Colossal Sword",
+            "Colossal Sword", "Zweihander", "Godslayer's Greatsword",
             "Rapier",
             "Heavy Thrusting Sword", "Great Épée",
             "Curved Sword", "Shamshir", "Flowing Curved Sword",
@@ -128,7 +128,8 @@ namespace Eldenheim
                                                    "Knight's Greatsword: that family and the Inseparable Sword (style 128). Milady: a light greatsword. " +
                                                    "Zamor Curved Sword: a curved greatsword of its own style." },
             new[] { "Knives", "Dagger", "Valheim's knives, Skoll and Hati included (a pair plays the class's power stance). " +
-                                        "Smithscript Dagger: every attack throws the knife, which reforms in the hand." },
+                                        "Smithscript Dagger: every attack throws the knife, which reforms in the hand. " +
+                                        "Main-gauche: in the left hand, it power-stances with a Rapier in the right." },
             new[] { "OneHandedClubs", "Morning Star", "Valheim's one-handed clubs and maces. Morning Star: the hammer category's own heavies. " +
                                                        "Club: the earlier moveset (the Mace's style). Stone Club: its own style." },
             new[] { "TwoHandedClubs", "Great Hammer", "Valheim's sledges. Smithscript Hammer: its heavies spin and throw the sledge, which slams " +

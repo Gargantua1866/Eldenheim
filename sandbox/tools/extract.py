@@ -128,6 +128,13 @@ WEAPONS = [
     ("Dane's Footwork", 60510000),
     # The Flowing Curved Sword: a curved sword of its own style.
     ("Flowing Curved Sword", 7060000),
+    # Two colossal swords of their own style: the Zweihander (a135, its own
+    # charged heavies) and Godslayer's Greatsword (a137, its own light chains,
+    # paired too); and the Main-gauche (a dagger of style a262: its own heavies
+    # and its own power stance, which also pairs it with a thrusting sword).
+    ("Zweihander", 4040000),
+    ("Godslayer's Greatsword", 4070000),
+    ("Main-gauche", 1500000),
     ("Shield", 30000000),
 ]
 
@@ -207,6 +214,10 @@ BLADES = {
     "Dane's Footwork": ((0.0, -0.03), (0.0, 0.09)),
     # ESTIMATE: a long slim curved blade (the game's is about 1.1 m).
     "Flowing Curved Sword": ((0.0, 0.1), (0.05, 1.1)),
+    # ESTIMATES, as the stand-in shapes in rig.rs.
+    "Zweihander": ((0.0, 0.15), (0.0, 1.75)),
+    "Godslayer's Greatsword": ((0.0, 0.15), (0.0, 1.55)),
+    "Main-gauche": ((0.0, 0.05), (0.0, 0.42)),
     "Shield": ((-0.28, 0.0), (0.28, 0.0)),
 }
 

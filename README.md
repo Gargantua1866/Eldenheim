@@ -247,7 +247,8 @@ alone. Sheathing (R) and reloading keep each weapon in its hand.
 
 - **Power stance:** with two weapons of the same class, one in each hand,
   the guard button plays the power-stance moveset. Sheathed, they cross on
-  the back.
+  the back. As in Elden Ring, a Main-gauche in the left hand also
+  power-stances with a Rapier in the right (the Rapier's power stance).
 - **Paired weapons:** Valheim items that are already a pair (knuckles/claws,
   Skoll and Hati, the dual axes) take both hands and nothing else. Claws are
   held two-handed; Skoll and Hati and the dual axes play their class's power
@@ -334,18 +335,18 @@ recovery frame.
 
 ### Movesets
 
-The mod has 54 Elden Ring movesets, one per class below. Any of them, the
+The mod has 57 Elden Ring movesets, one per class below. Any of them, the
 Torch included, can be picked for any Valheim weapon type in F1 → 5 - Movesets,
 and for bare hands (BareHands, at the top: Fist, or a hand-to-hand art).
 
 | Elden Ring weapon type | Classes |
 |---|---|
-| Daggers | Dagger, Erdsteel Dagger |
+| Daggers | Dagger, Erdsteel Dagger, Main-gauche |
 | Throwing blades | Smithscript Dagger |
 | Straight swords | Longsword, Warhawk's Talon, Carian Knight's Sword |
 | Light greatswords | Milady |
 | Greatswords | Claymore, Knight's Greatsword |
-| Colossal swords | Colossal Sword |
+| Colossal swords | Colossal Sword, Zweihander, Godslayer's Greatsword |
 | Thrusting swords | Rapier |
 | Heavy thrusting swords | Heavy Thrusting Sword, Great Épée |
 | Curved swords | Curved Sword, Shamshir, Flowing Curved Sword |

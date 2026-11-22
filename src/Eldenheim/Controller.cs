@@ -2371,6 +2371,9 @@ namespace Eldenheim
             // Paired weapons work as claws do: light attacks (their power-stance
             // set), guard on the guard button.
             Sim.PairedOnLight = Hands.IsPair(Right) && Right.m_shared.m_skillType != Skills.SkillType.Unarmed;
+            // As Elden Ring: a Main-gauche in the left hand power-stances with a thrusting sword.
+            Sim.PairsLeft = Weapon("Main-gauche");
+            Sim.PairsRight = Weapon("Rapier");
             Sim.HeavyDebounce = 1f;
             Sim.DodgeIframes = Settings.ValheimIframes.Value ? ValheimDodgeIframes * Consts.ANIM_FPS : 0f;
             Sim.DodgeRecovery = Settings.ValheimIframes.Value ? ValheimDodgeGap : 0f;
