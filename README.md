@@ -1,11 +1,10 @@
 # Eldenheim
 
-Eldenheim runs the Elden Ring movement and combat sandbox
+Eldenheim uses the Elden Ring movement and combat sandbox
 ([ELDEN-RING-Combat-Rewrite](https://github.com/Funny-Bones/ELDEN-RING-Combat-Rewrite))
-on Valheim's player. While a melee weapon or bare fists are out, the
-sandbox's own simulation moves the character, dodges, jumps, attacks, guards
-and takes hits, with Elden Ring's frame data and animations. Valheim keeps
-everything else.
+to control Valheim's player. Melee weapons and bare fists use the
+sandbox's simulation to attack, move, dodge, jump, guard, and take hits,
+all with Elden Ring's frame data and animations.
 
 Showcase video
 
@@ -26,20 +25,20 @@ The NoWeaponDust mod by Azumatt is highly recommended.
 
 ## Easy install (EldenheimSetup.exe)
 
-1. Install BepInEx and the required mods above, and close Valheim (and your
-   mod manager, if you use one).
-2. Unzip `EldenheimSetup-<version>.zip` anywhere and run
+1. Install BepInEx and the required mods above
+2. Close your mod manager if using one
+3. Unzip `EldenheimSetup-<version>.zip` anywhere and run
    `EldenheimSetup\EldenheimSetup.exe`.
-3. Check the two folders it found (Elden Ring's `Game` folder, and Valheim's
-   `BepInEx\plugins`, or a Gale or r2modman profile's), then press Install.
+4. Check the two folders it found (Elden Ring's `Game` folder, and Valheim's
+   `BepInEx\plugins`, or a Gale or r2modman profile), then press Install.
 
-It reads your copy of Elden Ring, makes the mod's data (a few minutes), and
+The installer reads your copy of Elden Ring to make the mod's data (a few minutes), and
 installs everything into `plugins\Eldenheim` (or updates an Eldenheim already
 there). In a Gale, r2modman or Thunderstore Mod Manager profile it also adds
 Eldenheim to the manager's mod list (Gale's database is backed up first,
 to `data.sqlite3.before-eldenheim`). Nothing is downloaded.
 
-The same window updates, repairs and uninstalls, for the plugins folder chosen:
+The same installer updates, repairs and uninstalls, for the plugins folder chosen:
 
 - **Update** (Install, once installed): installs this Setup's version and
   keeps your settings. The data is made again only when it is missing, when
@@ -59,8 +58,7 @@ tools but nothing from Elden Ring, so it can be shared.
 
 ### Movesets
 
-The mod has 57 Elden Ring movesets. Any can be picked for any Valheim weapon type in F1 → 5 - Movesets,
-and for bare hands (BareHands, at the top: Fist, or a hand-to-hand art).
+Eldenheim has 57 Elden Ring movesets. Any can be picked for any Valheim weapon type in F1 → 5 - Movesets
 
 | Elden Ring weapon type | Classes |
 |---|---|
@@ -94,47 +92,40 @@ and for bare hands (BareHands, at the top: Fist, or a hand-to-hand art).
 | Beast claws | Beast Claw |
 | Torches | Torch |
 
-The Smithscript weapons throw themselves where Elden Ring's do: the Spear's,
-Axe's and Hammer's heavies (the Hammer spins first, and slams with a sledge's
-area blow where it lands) and every Dagger attack. The thrown weapon is gone
-from the hand for a moment and reforms there; a spear thrown with ThrowSpears
-on is gone for good. Throws aim as Valheim's spear does: the way you look, up,
-down or to the side, at the same speed and drop every time. Locked on, they go
-at the target, lifted to make up for the drop at that range. The axe tumbles and the hammer spins flat as they fly.
-Two-handing the Dagger, from either hand, shows a knife in each hand and throws
-from both.
+The Smithscript weapons throw when Elden Ring's do, usually on heavy attacks.
+Spear: Heavy1, Running Heavy
+Axe: Heavy1, Jump Heavy
+Daggers: Every attack
+Hammer: Heavy1 (sledgehammers use their AoE if fully charged)
+ThrowSpears setting removes the spear from your inventory when thrown.
+Throws while locked on fly at the target, lifted to make up for the drop at that range.
+Two-handing the Dagger puts one in each hand and throws from both.
 
-Feints come with the classes that have them in the game (among the new ones,
-the Smithscript Dagger and the Beast Claw). The Carian Knight's Sword guards
-while its heavies charge: a blocked hit doesn't stop the attack. The
-hand-to-hand arts kick with the feet: their kicks strike where the foot is.
+Feint attacks come with the classes that have them in Elden Ring.
+The Carian Knight's Sword guards while its heavies charge: a blocked hit doesn't stop the attack. 
+Hand-to-hand arts kick with the feet: their kicks strike where the foot is.
 
 Attacks chain as the game's script has them: a light after a run heavy, first
 heavy or guard counter is the chain's second swing, and after a feint it's the
-backstep's attack. Milady's attacks say themselves where they go on (its
-two-handed run heavy into the fourth swing, for one).
+backstep's attack. Milady's unique attack chain is included.
 
 ### Attacks list for players new to Elden Ring
 
 - **Light attack combo:** press light attack again as each swing ends to go
   on to the next (up to six, depending on the weapon).
 - **Heavy attack:** tap heavy for a quick heavy, or hold it to charge a
-  stronger one that staggers more; let go to swing. A second heavy straight
-  after the first plays the follow-up heavy.
+  stronger one that staggers more. Let go to swing. A second heavy
+  after the first does the follow-up heavy.
 - **Running attacks:** light or heavy while sprinting.
-- **Rolling attack:** light straight after a roll.
-- **Backstep attack:** light straight after a backstep (the dodge with no
+- **Rolling attack:** light after a roll.
+- **Backstep attack:** light after a backstep (the dodge with no
   direction held).
 - **Crouch attack:** light while crouching.
 - **Jump attacks:** light or heavy in the air, striking as you come down.
-- **Jumping over attacks:** as in Elden Ring, your legs can't be hit in a
-  jump. Once you're more than 0.35 m off the ground, a blow that lands below
-  your hips misses, with no hit at all.
-- **Guard counter:** block a hit, then press heavy straight away: a quick,
-  heavy counter that staggers well.
-- **Feints:** with the classes that have them (Curved Swords, Thrusting Swords,
-  Heavy Thrusting Swords, Beast Claw, Smithscript Dagger, Great Katanas), press dodge while
-  charging a heavy: you hop back instead of swinging.
+- **Guard counter:** heavy right after blocking a hit. Plays the Elden Ring sound effect.
+- **Feints:** press dodge while charging a heavy: you hop back instead of swinging.
+  Classes that have them: Curved Swords, Thrusting Swords,
+  Heavy Thrusting Swords, Beast Claw, Smithscript Dagger, Great Katanas
 - **Left-hand attacks:** with a weapon in the left hand, the guard button
   attacks with it. With two weapons of the same class, it plays the
   power-stance combo (and its running, rolling and backstep attacks).
@@ -158,15 +149,15 @@ More settings under F1 → 2 - Controls:
 - `CameraAutoRotation` (on, as in Elden Ring): with a gamepad and no lock-on,
   the camera gently turns to follow the way you move; off, only the right stick
   turns it.
-- `FreeAimVertical` (default 10): unlocked, attacks aim up or down the way the
-  camera looks, by up to this many degrees; 0 turns it off.
+- `FreeAimVertical` (default 10): while unlocked, attacks aim up or down the way the
+  camera looks by up to this many degrees. 0 turns it off.
 
 And under 6 - Combat (server), `WeaponKnockbackScale` scales how far hits push what
 they strike (1 = Valheim's weapon knockback, 0 = none).
 
 ## Controls
 
-These are the defaults. To rebind one, open F1, click "Set", then press the
+These are the defaults. To rebind, open F1, click "Set", then press a
 button.
 
 | Action | Keyboard / mouse | Gamepad |
@@ -178,8 +169,8 @@ button.
 | Guard / left-hand attack; guard counter = heavy after a block | Valheim's Block (RMB) | LB |
 | Crouch | Valheim's Crouch | L3 |
 | Walk (toggle) | Valheim's ToggleWalk | — |
-| Lock on (with nothing to lock: recentre the camera) | Caps Lock | R3 |
-| Reverse backstep (not locked on): backstep, then at once press a direction (S goes forward, A right, D left) | — | — |
+| Lock on (with nothing to lock: recenter the camera) | Caps Lock | R3 |
+| Reverse backstep (not locked on): backstep, then immediately press a direction (S goes forward, A right, D left) | — | — |
 | Switch lock-on target | flick the mouse left/right | right stick left/right |
 | Two-hand right / left | hold Valheim's Use + Attack / Block | hold Valheim's Use (A; X in its alternative layouts) + RB / LB |
 
@@ -201,28 +192,33 @@ usual.
 
 Valheim's two-handers also work in either hand, with a shield, torch or
 weapon in the other. They are held one-handed then, and two-handed when
-alone. Sheathing (R) and reloading keep each weapon in its hand.
+alone. Sheathing (R) and unsheathing keep each weapon in its hand.
 
 - **Power stance:** with two weapons of the same class, one in each hand,
-  the guard button plays the power-stance moveset. Sheathed, they cross on
-  the back. As in Elden Ring, a Main-gauche in the left hand also
+  the guard button plays the power-stance moveset. They cross on
+  the back while sheathed. As in Elden Ring, a Main-gauche in the left hand also
   power-stances with a Rapier in the right (the Rapier's power stance).
-- **Paired weapons:** Valheim items that are already a pair (knuckles/claws,
-  Skoll and Hati, the dual axes) take both hands and nothing else. Claws are
+- **Paired weapons:** Valheim weapons that are already a pair (knuckles/claws,
+  Skoll and Hati, the dual axes) take both hands naturally. Claws are
   held two-handed; Skoll and Hati and the dual axes play their class's power
-  stance, a weapon in each hand.
+  stance.
 - Two-handing one weapon puts the other hand's item on the back, with
   Valheim's equip sound.
 
-**Stamina and falls** are Valheim's: sprinting, jumping and dodging cost what
+**Stamina:** Sprinting, jumping and dodging cost what
 they cost in vanilla (with the Run and Dodge skills and gear). A first light
 attack costs the weapon's own attack stamina, and other attacks cost Elden
-Ring's proportion of that. Each hit is charged to the weapon that swings it, so
-each weapon in a power stance pays its own. As in vanilla, an attack you can't
-pay for doesn't come out. Falls do Valheim's damage (100 at most). Only a fall
-that does more than 50 damage ends in the heavy landing.
+Ring's proportion of that.
+Attacks follow Elden Ring's logic (F1 → 7 - Stamina & Movement → `NegativeStamina`):
+any attack can start while there is stamina left, whatever it costs. One that
+empties the bar keeps it empty (flashing red) until that attack ends, so the
+combo can't continue; then it refills as usual. With the option off, an attack
+needs its whole cost to even start like in Valheim. Stamina doesn't refill during an action until its
+recovery frame. Each hit is charged to the weapon that swings it, so
+each weapon in a power stance pays its own stamina cost.
 
-Each `Valheim:Name` default follows Valheim's own binding for that button.
+**Fall damage** Falls do Valheim's damage (100 at most). A fall
+that does more than 50 damage ends in Elden Ring's heavy landing animation.
 
 **Separate dodge and sprint buttons.** By default one button does both: tap
 to dodge, hold to sprint. To give each its own button:
@@ -234,66 +230,53 @@ to dodge, hold to sprint. To give each its own button:
    Click "Set" next to `Dodge` or `Sprint` (or `Crouch`) and press the new
    button.
 
-With them separate, the dodge button only dodges and the sprint button
-sprints as long as it is held. `DodgeTrigger` (also under *2 - Controls*) sets
-whether the dodge comes out on Release (as in Elden Ring) or on Press; Press
-fits separate buttons best, since with `SeparateSprint` off it leaves no way
+`DodgeTrigger` (also under *2 - Controls*) sets
+whether the dodge comes out on Release (as in Elden Ring) or on Press.
+Press fits separate buttons best, since with `SeparateSprint` off it leaves no way
 to sprint.
-With a gamepad and the inventory open, `LeftJoystickInventory` lets the left
-stick walk (only the D-pad moves the selection) and `DodgeInInventory` makes B
+If using a gamepad, `LeftJoystickInventory` lets the left
+stick walk while the inventory is open (only the D-pad moves the selection) and `DodgeInInventory` makes B
 dodge and sprint instead of closing it (Y closes it). A gamepad button still
 held when a menu closes or the game unpauses does nothing until it is let go
 (held keys carry on, so a sprint goes on past the inventory).
 
-**Stamina:** attacks follow Elden Ring (F1 → 7 - Stamina & Movement → `NegativeStamina`):
-any attack starts while there is stamina left, whatever it costs. One that
-empties the bar keeps it empty (flashing red) until that attack ends, so the
-combo can't continue; then it refills as usual. With the option off, an attack
-needs its whole cost, as in Valheim. Stamina doesn't refill during an action until its
-recovery frame.
+**Jumping over attacks:** as in Elden Ring, your legs can't be hit in a
+  jump. Once you're more than 0.35 m off the ground, a blow that lands below
+  your hips misses, with no hit at all.
 
-**Weapons:** each Valheim weapon type's Elden Ring moveset is chosen in F1 →
-5 - Movesets (any class can be picked; see Movesets below). The defaults are:
-- One-handed: swords → Longsword (or Shamshir), knives → Dagger, clubs →
-  Morning Star (or Club, the earlier one), axes → Hand Axe (or Battle Axe,
-  the earlier one), atgeirs → Halberd (or Banished Knight's Halberd), bare hands → Fist.
-- Spears → Smithscript Spear (Shadow of the Erdtree): its heavy attacks throw
-  it, with Valheim's spear projectile and sounds, at full damage at any
-  range (charged throws hit harder, as charged swings do); it stays in your
-  hand, or with F1 → 5 - Movesets → `ThrowSpears` the spear itself flies, leaves
-  the inventory and lands where it hits, as in Valheim.
-- Knuckles and claws → Claw (Raptor Talons; or Fist, the earlier one), two-handed.
-- Two-handed: swords (the Krom too) → Claymore or Knight's Greatsword, chosen
-  in F1 → 5 - Movesets → TwoHandedSwords. Elden Ring's greatswords share a
-  category but differ by style: 125 for the Claymore, 128 for the Knight's
-  Greatsword family and the Inseparable Sword. Sledges → Great Hammer, axes →
-  Greataxe. A sledge's shockwave comes with fully charged heavies, guard counters
-  and the Smithscript Hammer's fully charged throws (F1 → 6 - Combat → `SledgeAoeChargedOnly`;
-  off, uncharged heavies slam too, which is overpowered).
-- Paired weapons, in power stance: Skoll and Hati → Dagger, dual axes → the
-  one-handed axes' class. Paired weapons can't be two-handed.
-- Therzie's Warfare: its weapons follow their Valheim type above, and those on
-  its own skills have their own entries: scythes → Reaper (the dual scythes in
-  power stance), throwing axes → Smithscript Axe (a pair in power stance; each
-  throw uses one from the stack), paired swords → Curved Sword in power stance.
-  Each weapon's special (its secondary attack: the dwarven lightning, Doombringer's
-  meteor, the Hellblade Cleavers' fire, the fists' roars) comes with the heavies.
-  Some only activate on a fully charged heavy: the big ones (a lightning strike,
-  anything spawned or shot) and the war pikes' dust burst (also on guard
-  counters). Its sledges slam as vanilla's do, and its on-hit effects
-  (Vampirism, Bleeding...) count Eldenheim's hits, heavies as secondary attacks.
-- Equipping, sheathing (R) and drawing play Elden Ring's swap for the hand
-  that changed.
-- Atgeirs and spears slide along the shaft so the hand grips the point that
-  gives Elden Ring's reach.
-- Left hand: shield → Shield, torch → Torch, a weapon → its class.
-- With a bow, staff or tool out, Valheim's own combat takes over.
-- Valheim's butcher knife damages only tamed creatures, whatever its moveset,
-  thrown or swung, as in vanilla.
+**Weapon class moveset defaults:** 
+BareHands → Fist
+OneHandedSwords → Longsword
+TwoHandedSwords → Claymore
+Knives → Dagger
+OneHandedClubs → Morning Star
+TwoHandedClubs → Great Hammer
+OneHandedAxes → Hand Axe
+TwoHandedAxes → Greataxe
+Polearms → Halberd
+Spears → Smithscript Spear
+Knuckles → Claw
+
+Sledgehammer AoE comes with fully charged heavies, guard counters, 
+and the Smithscript Hammer's fully charged throws (F1 → 6 - Combat → `SledgeAoeChargedOnly`;
+if off, uncharged heavies slam too, which is overpowered).
+
+Therzie's Warfare:
+PairedSwords → Power stanced curved swords
+Scythes → Reaper
+ThrowingAxes → Smithscript Axe
+
+Therzie's weapons follow their Valheim type above.
+Each weapon's special (its secondary attack: the dwarven lightning, Doombringer's
+meteor, the Hellblade Cleavers' fire, the fists' roars) comes with the heavies.
+Some only activate on a fully charged heavy: the big ones (a lightning strike,
+anything spawned or shot) and the war pikes' dust burst (also on guard
+counters). Its sledges slam as vanilla's do, and its on-hit effects
+(Vampirism, Bleeding...) count Eldenheim's hits.
 
 ## Sound
 
-Swings, steps, rolls, jumps and landings use Valheim's own sounds and dust.
+Attacks, footsteps, rolls, jumps and landings use Valheim's own sounds and dust.
 Three sounds come from Elden Ring:
 
 - the guard counter (F1 → 9 - Sound; quieter than the game's mix by default);
