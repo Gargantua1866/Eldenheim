@@ -59,8 +59,7 @@ tools but nothing from Elden Ring, so it can be shared.
 
 ### Movesets
 
-The mod has 57 Elden Ring movesets, one per class below. Any of them, the
-Torch included, can be picked for any Valheim weapon type in F1 → 5 - Movesets,
+The mod has 57 Elden Ring movesets. Any can be picked for any Valheim weapon type in F1 → 5 - Movesets,
 and for bare hands (BareHands, at the top: Fist, or a hand-to-hand art).
 
 | Elden Ring weapon type | Classes |
