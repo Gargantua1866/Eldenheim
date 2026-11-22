@@ -1719,8 +1719,40 @@ namespace Eldenheim
 
         // --- Every frame ---------------------------------------------------------
 
+        /// <summary>The player animator's update mode as Valheim's player prefab has it (null until the prefab is found).</summary>
+        private static AnimatorUpdateMode? _valheimUpdateMode;
+
+        /// <summary>
+        /// The pose is written once a frame, before Valheim's animator would next
+        /// run. Another mod setting the player's animator to update every rendered
+        /// frame (ValheimPerformanceOverhaul does, on spawn) has the animator write
+        /// over it before the frame is drawn: Valheim's own mode is put back.
+        /// </summary>
+        private void KeepUpdateMode()
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+            if (!_valheimUpdateMode.HasValue)
+            {
+                Animator prefab = ZNetScene.instance?.GetPrefab("Player")?.GetComponentInChildren<Animator>(true);
+                if (prefab == null)
+                {
+                    return;
+                }
+                _valheimUpdateMode = prefab.updateMode;
+            }
+            if (_animator.updateMode != _valheimUpdateMode.Value)
+            {
+                Plugin.Report($"player animator updates {_animator.updateMode} (another mod's change): back to Valheim's {_valheimUpdateMode.Value}");
+                _animator.updateMode = _valheimUpdateMode.Value;
+            }
+        }
+
         private void Update()
         {
+            KeepUpdateMode();
             // Less than deltaTime after an extra physics step's pose (PoseForStep), which already moved the pose's timers on.
             float poseDt = Time.time - _posedAt;
             _posedAt = Time.time;
