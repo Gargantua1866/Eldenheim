@@ -135,14 +135,20 @@ WEAPONS = [
     ("Zweihander", 4040000),
     ("Godslayer's Greatsword", 4070000),
     ("Main-gauche", 1500000),
+    # Shadow of the Erdtree's great spears of their own style: the Spear of the
+    # Impaler (a266, laid out as the Smithscript Spear's: its Heavy1 and
+    # running heavy throw it, see THROWS) and Messmer Soldier's Spear (a206,
+    # its own charged heavies).
+    ("Spear of the Impaler", 17500000),
+    ("Messmer Soldier's Spear", 17510000),
     ("Shield", 30000000),
 ]
 
-# The Smithscript weapons throw themselves: their attacks' bullets (TAE event
-# 2) become hits flagged as throws, which a host that can launch projectiles
-# (Eldenheim) fires. Other classes' bullets are effects (the hand-to-hand
-# arts' gusts) and stay out.
-THROWS = ("Smithscript Spear", "Smithscript Hammer", "Smithscript Axe", "Smithscript Dagger")
+# The Smithscript weapons (and the Spear of the Impaler) throw themselves:
+# their attacks' bullets (TAE event 2) become hits flagged as throws, which a
+# host that can launch projectiles (Eldenheim) fires. Other classes' bullets
+# are effects (the hand-to-hand arts' gusts) and stay out.
+THROWS = ("Smithscript Spear", "Smithscript Hammer", "Smithscript Axe", "Smithscript Dagger", "Spear of the Impaler")
 DEFAULT_WEAPON = "Longsword"
 
 # Thickness of the hit capsule around a weapon's striking line. ESTIMATE, and
@@ -218,6 +224,8 @@ BLADES = {
     "Zweihander": ((0.0, 0.15), (0.0, 1.75)),
     "Godslayer's Greatsword": ((0.0, 0.15), (0.0, 1.55)),
     "Main-gauche": ((0.0, 0.05), (0.0, 0.42)),
+    "Spear of the Impaler": ((0.0, 0.8), (0.0, 2.2)),
+    "Messmer Soldier's Spear": ((0.0, 0.8), (0.0, 2.3)),
     "Shield": ((-0.28, 0.0), (0.28, 0.0)),
 }
 

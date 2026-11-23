@@ -1303,6 +1303,7 @@ namespace Eldenheim
         {
             { "Halberd", 1.87f }, { "Banished Knight's Halberd", 1.90f }, { "Short Spear", 1.66f }, { "Smithscript Spear", 1.66f }, { "Great Spear", 2.26f },
             { "Guardian's Swordspear", 1.84f }, { "Cross-Naginata", 2.0f },
+            { "Spear of the Impaler", 2.2f }, { "Messmer Soldier's Spear", 2.3f },
         };
 
         private readonly Dictionary<GameObject, Vector3> _poleRest = new Dictionary<GameObject, Vector3>();

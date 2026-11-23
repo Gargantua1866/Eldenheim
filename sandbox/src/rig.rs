@@ -237,6 +237,9 @@ const WEAPON_PARTS: &[&[([f32; 3], [f32; 3], Stuff)]] = &[
     &[([0.04, 0.4, 0.04], [0.0, -0.07, 0.0], Stuff::Wood), ([0.36, 0.04, 0.05], [0.0, 0.14, 0.0], Stuff::Steel), ([0.14, 1.4, 0.025], [0.0, 0.87, 0.0], Stuff::Steel)],
     // Main-gauche: a parrying dagger
     &[([0.03, 0.13, 0.03], [0.0, -0.02, 0.0], Stuff::Wood), ([0.18, 0.02, 0.03], [0.0, 0.05, 0.0], Stuff::Steel), ([0.035, 0.36, 0.012], [0.0, 0.24, 0.0], Stuff::Steel)],
+    // Spear of the Impaler, Messmer soldier's spear: great spears
+    &[([0.04, 2.2, 0.04], [0.0, 0.66, 0.0], Stuff::Wood), ([0.06, 0.45, 0.02], [0.0, 1.97, 0.0], Stuff::Steel)],
+    &[([0.04, 2.3, 0.04], [0.0, 0.7, 0.0], Stuff::Wood), ([0.1, 0.45, 0.02], [0.0, 2.07, 0.0], Stuff::Steel)],
 ];
 
 #[derive(Clone, Copy)]

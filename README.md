@@ -58,7 +58,7 @@ tools but nothing from Elden Ring, so it can be shared.
 
 ### Movesets
 
-Eldenheim has 57 Elden Ring movesets. Any can be picked for any Valheim weapon class in F1 → 5 - Movesets
+Eldenheim has 59 Elden Ring movesets. Any can be picked for any Valheim weapon class in F1 → 5 - Movesets
 
 | Elden Ring weapon class | Movesets |
 |---|---|
@@ -82,7 +82,7 @@ Eldenheim has 57 Elden Ring movesets. Any can be picked for any Valheim weapon c
 | Great hammers | Great Hammer, Smithscript Hammer |
 | Colossal weapons | Colossal Weapon |
 | Spears | Short Spear, Smithscript Spear, Cross-Naginata |
-| Great spears | Great Spear |
+| Great spears | Great Spear, Spear of the Impaler, Messmer Soldier's Spear |
 | Halberds | Halberd, Banished Knight's Halberd, Guardian's Swordspear |
 | Reapers | Reaper |
 | Whips | Whip |
@@ -92,8 +92,9 @@ Eldenheim has 57 Elden Ring movesets. Any can be picked for any Valheim weapon c
 | Beast claws | Beast Claw |
 | Torches | Torch |
 
-The Smithscript weapons throw when Elden Ring's do, usually on heavy attacks.
+The Smithscript weapons (and the Spear of the Impaler) throw when Elden Ring's do, usually on heavy attacks.
 - Spear: Heavy1, Running Heavy
+- Spear of the Impaler: Heavy1, Running Heavy
 - Axe: Heavy1, Jump Heavy
 - Daggers: Every attack
 - Hammer: Heavy1 (sledgehammers use their AoE if fully charged)
