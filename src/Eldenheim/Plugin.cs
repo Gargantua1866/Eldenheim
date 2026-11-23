@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Eldenheim
 {
-    [BepInPlugin(Guid, "Eldenheim", "0.6.44")]
+    [BepInPlugin(Guid, "Eldenheim", "0.6.45")]
     // Loaded first when installed, so its dropdown style can be patched (InputDrawer.PatchDropdowns).
     [BepInDependency("_shudnal.ConfigurationManager", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
