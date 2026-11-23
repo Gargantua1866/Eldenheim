@@ -17,55 +17,6 @@ namespace Eldenheim
     }
 
     /// <summary>
-    /// The F1 menu's moveset settings, in two short steps: the chosen class (and
-    /// its Elden Ring weapon type) as a button; open, a small grid of the weapon
-    /// types (Settings.ErClassGroups) and, under it, the shown type's classes. A
-    /// type shows its classes; a class is picked and closes it.
-    /// </summary>
-    internal static class MovesetDrawer
-    {
-        private static ConfigEntryBase _open;
-        private static int _type;
-        private static GUIStyle _small;
-        private static string[] _types;
-
-        private static int TypeOf(string cls) =>
-            System.Array.FindIndex(Settings.ErClassGroups, g => System.Array.IndexOf(g, cls, 1) > 0);
-
-        public static void Draw(ConfigEntryBase entry)
-        {
-            var e = (ConfigEntry<string>)entry;
-            int type = TypeOf(e.Value);
-            GUILayout.BeginVertical();
-            string label = type >= 0 ? $"{e.Value}  ({Settings.ErClassGroups[type][0]})" : e.Value;
-            // One picker open at a time: opening another closes this one.
-            if (GUILayout.Button((_open == entry ? "▲ " : "▼ ") + label, GUILayout.ExpandWidth(true)))
-            {
-                _open = _open == entry ? null : entry;
-                _type = System.Math.Max(type, 0);
-            }
-            if (_open == entry)
-            {
-                _small = _small ?? new GUIStyle(GUI.skin.button) { fontSize = 11, padding = new RectOffset(3, 3, 2, 2), margin = new RectOffset(1, 1, 1, 1) };
-                _types = _types ?? System.Array.ConvertAll(Settings.ErClassGroups, g => g[0]);
-                _type = GUILayout.SelectionGrid(_type, _types, 3, _small, GUILayout.ExpandWidth(true));
-                string[] group = Settings.ErClassGroups[_type];
-                string[] classes = new string[group.Length - 1];
-                System.Array.Copy(group, 1, classes, 0, classes.Length);
-                int picked = System.Array.IndexOf(classes, e.Value);
-                GUILayout.Space(4);
-                int now = GUILayout.SelectionGrid(picked, classes, 2, GUILayout.ExpandWidth(true));
-                if (now != picked && now >= 0)
-                {
-                    e.Value = classes[now];
-                    _open = null;
-                }
-            }
-            GUILayout.EndVertical();
-        }
-    }
-
-    /// <summary>
     /// The F1 menu's input settings: the binding as text, plus "Set", which
     /// waits for the next key, mouse button or gamepad button pressed and
     /// binds it (Escape cancels). "Default" puts the default back; the text

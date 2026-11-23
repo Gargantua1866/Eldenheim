@@ -87,38 +87,38 @@ namespace Eldenheim
         /// <summary>
         /// The classes by Elden Ring weapon type, in the order the game lists
         /// them (a type's own styles after its plain class): each group's first
-        /// entry is its heading in the F1 picker (MovesetDrawer).
+        /// entry is its divider line in the F1 dropdown (MovesetChoices).
         /// </summary>
         public static readonly string[][] ErClassGroups =
         {
             new[] { "Daggers", "Dagger", "Erdsteel Dagger", "Main-gauche" },
-            new[] { "Throwing blades", "Smithscript Dagger" },
-            new[] { "Straight swords", "Longsword", "Warhawk's Talon", "Carian Knight's Sword" },
-            new[] { "Light greatswords", "Milady" },
+            new[] { "Throwing Blades", "Smithscript Dagger" },
+            new[] { "Straight Swords", "Longsword", "Warhawk's Talon", "Carian Knight's Sword" },
+            new[] { "Light Greatswords", "Milady" },
             new[] { "Greatswords", "Claymore", "Knight's Greatsword" },
-            new[] { "Colossal swords", "Colossal Sword", "Zweihander", "Godslayer's Greatsword" },
-            new[] { "Thrusting swords", "Rapier" },
-            new[] { "Heavy thrusting swords", "Heavy Thrusting Sword", "Great Épée" },
-            new[] { "Curved swords", "Curved Sword", "Shamshir", "Flowing Curved Sword" },
-            new[] { "Curved greatswords", "Curved Greatsword", "Zamor Curved Sword" },
+            new[] { "Colossal Swords", "Colossal Sword", "Zweihander", "Godslayer's Greatsword" },
+            new[] { "Thrusting Swords", "Rapier" },
+            new[] { "Heavy Thrusting Swords", "Heavy Thrusting Sword", "Great Épée" },
+            new[] { "Curved Swords", "Curved Sword", "Shamshir", "Flowing Curved Sword" },
+            new[] { "Curved Greatswords", "Curved Greatsword", "Zamor Curved Sword" },
             new[] { "Katanas", "Uchigatana", "Serpentbone Blade", "Meteoric Ore Blade" },
-            new[] { "Great katanas", "Great Katana", "Rakshasa's Great Katana" },
+            new[] { "Great Katanas", "Great Katana", "Rakshasa's Great Katana" },
             new[] { "Twinblades", "Twinblade", "Godskin Peeler" },
             new[] { "Axes", "Battle Axe", "Hand Axe", "Warped Axe", "Smithscript Axe" },
             new[] { "Greataxes", "Greataxe", "Crescent Moon Axe" },
             new[] { "Hammers", "Club", "Morning Star", "Stone Club" },
             new[] { "Flails", "Flail" },
-            new[] { "Great hammers", "Great Hammer", "Smithscript Hammer" },
-            new[] { "Colossal weapons", "Colossal Weapon" },
+            new[] { "Great Hammers", "Great Hammer", "Smithscript Hammer" },
+            new[] { "Colossal Weapons", "Colossal Weapon" },
             new[] { "Spears", "Short Spear", "Smithscript Spear", "Cross-Naginata" },
-            new[] { "Great spears", "Great Spear", "Spear of the Impaler", "Messmer Soldier's Spear" },
+            new[] { "Great Spears", "Great Spear", "Spear of the Impaler", "Messmer Soldier's Spear" },
             new[] { "Halberds", "Halberd", "Banished Knight's Halberd", "Guardian's Swordspear" },
             new[] { "Reapers", "Reaper" },
             new[] { "Whips", "Whip" },
             new[] { "Fists", "Fist" },
-            new[] { "Hand-to-hand arts", "Dryleaf Arts", "Dane's Footwork" },
+            new[] { "Hand-to-Hand Arts", "Dryleaf Arts", "Dane's Footwork" },
             new[] { "Claws", "Claw", "Raptor Talons" },
-            new[] { "Beast claws", "Beast Claw" },
+            new[] { "Beast Claws", "Beast Claw" },
             new[] { "Torches", "Torch" },
         };
 
@@ -127,6 +127,11 @@ namespace Eldenheim
         /// (see <see cref="Shown"/> for those the sandbox calls otherwise).
         /// </summary>
         public static readonly string[] ErClasses = ErClassGroups.SelectMany(g => g.Skip(1)).ToArray();
+
+        /// <summary>The F1 dropdown's entries: each type's divider ("---Straight Swords---"), then its classes.</summary>
+        private static readonly string[] MovesetChoices = ErClassGroups.SelectMany(g => g.Skip(1).Prepend("---" + g[0] + "---")).ToArray();
+
+        private static bool IsDivider(string value) => value != null && value.StartsWith("---");
 
         // Setting key, default class, what it covers and the notable choices. Listed in this order.
         private static readonly string[][] Movesets =
@@ -295,9 +300,24 @@ namespace Eldenheim
                 }
                 // In Elden Ring's order (renamed saved values are mapped above).
                 ConfigEntry<string> entry = Bind(c, MOVESETS, m[0], m[1],
-                    new ConfigDescription(m[2] + " Any Elden Ring class can be picked.", new AcceptableValueList<string>(ErClasses),
-                        new ConfigurationManagerAttributes { Order = movesetOrder--, CustomDrawer = MovesetDrawer.Draw }), weapons);
-                entry.SettingChanged += (_, __) => MovesetVersion++;
+                    new ConfigDescription(m[2] + " Any Elden Ring class can be picked.", new AcceptableValueList<string>(MovesetChoices),
+                        new ConfigurationManagerAttributes { Order = movesetOrder-- }), weapons);
+                // A divider line in the dropdown is no moveset: picking one keeps the last.
+                string kept = IsDivider(entry.Value) ? m[1] : entry.Value;
+                if (entry.Value != kept)
+                {
+                    entry.Value = kept;
+                }
+                entry.SettingChanged += (_, __) =>
+                {
+                    if (IsDivider(entry.Value))
+                    {
+                        entry.Value = kept;
+                        return;
+                    }
+                    kept = entry.Value;
+                    MovesetVersion++;
+                };
                 Moveset[m[0]] = entry;
             }
             ThrowSpears = Bind(c, MOVESETS, "ThrowSpears", false,
