@@ -1,3 +1,4 @@
+using System.Linq;
 using BepInEx.Configuration;
 
 namespace Eldenheim
@@ -83,39 +84,49 @@ namespace Eldenheim
         /// The weapon classes a Valheim weapon can play, by their menu names
         /// (see <see cref="Shown"/> for those the sandbox calls otherwise).
         /// </summary>
-        public static readonly string[] ErClasses =
+        /// <summary>
+        /// The classes by Elden Ring weapon type, in the order the game lists
+        /// them (a type's own styles after its plain class): each group's first
+        /// entry is its heading in the F1 picker (MovesetDrawer).
+        /// </summary>
+        public static readonly string[][] ErClassGroups =
         {
-            // In the order Elden Ring lists weapon types; a class's own styles after it.
-            "Dagger", "Erdsteel Dagger", "Main-gauche",
-            "Smithscript Dagger",
-            "Longsword", "Warhawk's Talon", "Carian Knight's Sword",
-            "Milady",
-            "Claymore", "Knight's Greatsword",
-            "Colossal Sword", "Zweihander", "Godslayer's Greatsword",
-            "Rapier",
-            "Heavy Thrusting Sword", "Great Épée",
-            "Curved Sword", "Shamshir", "Flowing Curved Sword",
-            "Curved Greatsword", "Zamor Curved Sword",
-            "Uchigatana", "Serpentbone Blade", "Meteoric Ore Blade",
-            "Great Katana", "Rakshasa's Great Katana",
-            "Twinblade", "Godskin Peeler",
-            "Battle Axe", "Hand Axe", "Warped Axe", "Smithscript Axe",
-            "Greataxe", "Crescent Moon Axe",
-            "Club", "Morning Star", "Stone Club",
-            "Flail",
-            "Great Hammer", "Smithscript Hammer",
-            "Colossal Weapon",
-            "Short Spear", "Smithscript Spear", "Cross-Naginata",
-            "Great Spear",
-            "Halberd", "Banished Knight's Halberd", "Guardian's Swordspear",
-            "Reaper",
-            "Whip",
-            "Fist",
-            "Dryleaf Arts", "Dane's Footwork",
-            "Claw", "Raptor Talons",
-            "Beast Claw",
-            "Torch",
+            new[] { "Daggers", "Dagger", "Erdsteel Dagger", "Main-gauche" },
+            new[] { "Throwing blades", "Smithscript Dagger" },
+            new[] { "Straight swords", "Longsword", "Warhawk's Talon", "Carian Knight's Sword" },
+            new[] { "Light greatswords", "Milady" },
+            new[] { "Greatswords", "Claymore", "Knight's Greatsword" },
+            new[] { "Colossal swords", "Colossal Sword", "Zweihander", "Godslayer's Greatsword" },
+            new[] { "Thrusting swords", "Rapier" },
+            new[] { "Heavy thrusting swords", "Heavy Thrusting Sword", "Great Épée" },
+            new[] { "Curved swords", "Curved Sword", "Shamshir", "Flowing Curved Sword" },
+            new[] { "Curved greatswords", "Curved Greatsword", "Zamor Curved Sword" },
+            new[] { "Katanas", "Uchigatana", "Serpentbone Blade", "Meteoric Ore Blade" },
+            new[] { "Great katanas", "Great Katana", "Rakshasa's Great Katana" },
+            new[] { "Twinblades", "Twinblade", "Godskin Peeler" },
+            new[] { "Axes", "Battle Axe", "Hand Axe", "Warped Axe", "Smithscript Axe" },
+            new[] { "Greataxes", "Greataxe", "Crescent Moon Axe" },
+            new[] { "Hammers", "Club", "Morning Star", "Stone Club" },
+            new[] { "Flails", "Flail" },
+            new[] { "Great hammers", "Great Hammer", "Smithscript Hammer" },
+            new[] { "Colossal weapons", "Colossal Weapon" },
+            new[] { "Spears", "Short Spear", "Smithscript Spear", "Cross-Naginata" },
+            new[] { "Great spears", "Great Spear", "Spear of the Impaler", "Messmer Soldier's Spear" },
+            new[] { "Halberds", "Halberd", "Banished Knight's Halberd", "Guardian's Swordspear" },
+            new[] { "Reapers", "Reaper" },
+            new[] { "Whips", "Whip" },
+            new[] { "Fists", "Fist" },
+            new[] { "Hand-to-hand arts", "Dryleaf Arts", "Dane's Footwork" },
+            new[] { "Claws", "Claw", "Raptor Talons" },
+            new[] { "Beast claws", "Beast Claw" },
+            new[] { "Torches", "Torch" },
         };
+
+        /// <summary>
+        /// The weapon classes a Valheim weapon can play, by their menu names
+        /// (see <see cref="Shown"/> for those the sandbox calls otherwise).
+        /// </summary>
+        public static readonly string[] ErClasses = ErClassGroups.SelectMany(g => g.Skip(1)).ToArray();
 
         // Setting key, default class, what it covers and the notable choices. Listed in this order.
         private static readonly string[][] Movesets =
@@ -285,7 +296,7 @@ namespace Eldenheim
                 // In Elden Ring's order (renamed saved values are mapped above).
                 ConfigEntry<string> entry = Bind(c, MOVESETS, m[0], m[1],
                     new ConfigDescription(m[2] + " Any Elden Ring class can be picked.", new AcceptableValueList<string>(ErClasses),
-                        new ConfigurationManagerAttributes { Order = movesetOrder-- }), weapons);
+                        new ConfigurationManagerAttributes { Order = movesetOrder--, CustomDrawer = MovesetDrawer.Draw }), weapons);
                 entry.SettingChanged += (_, __) => MovesetVersion++;
                 Moveset[m[0]] = entry;
             }

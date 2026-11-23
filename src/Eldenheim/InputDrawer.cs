@@ -17,6 +17,46 @@ namespace Eldenheim
     }
 
     /// <summary>
+    /// The F1 menu's moveset settings: the chosen class as a button that opens
+    /// every class, under Elden Ring's weapon type headings (Settings.ErClassGroups),
+    /// two to a row; a click picks one and closes the list.
+    /// </summary>
+    internal static class MovesetDrawer
+    {
+        private static ConfigEntryBase _open;
+        private static GUIStyle _heading;
+
+        public static void Draw(ConfigEntryBase entry)
+        {
+            var e = (ConfigEntry<string>)entry;
+            GUILayout.BeginVertical();
+            // Only one list open at a time: opening another closes this one.
+            if (GUILayout.Button((_open == entry ? "▲ " : "▼ ") + e.Value, GUILayout.ExpandWidth(true)))
+            {
+                _open = _open == entry ? null : entry;
+            }
+            if (_open == entry)
+            {
+                _heading = _heading ?? new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+                foreach (string[] group in Settings.ErClassGroups)
+                {
+                    GUILayout.Label("—— " + group[0] + " ——", _heading, GUILayout.ExpandWidth(true));
+                    string[] classes = new string[group.Length - 1];
+                    System.Array.Copy(group, 1, classes, 0, classes.Length);
+                    int picked = System.Array.IndexOf(classes, e.Value);
+                    int now = GUILayout.SelectionGrid(picked, classes, 2, GUILayout.ExpandWidth(true));
+                    if (now != picked && now >= 0)
+                    {
+                        e.Value = classes[now];
+                        _open = null;
+                    }
+                }
+            }
+            GUILayout.EndVertical();
+        }
+    }
+
+    /// <summary>
     /// The F1 menu's input settings: the binding as text, plus "Set", which
     /// waits for the next key, mouse button or gamepad button pressed and
     /// binds it (Escape cancels). "Default" puts the default back; the text
