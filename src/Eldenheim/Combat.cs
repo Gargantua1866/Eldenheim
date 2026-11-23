@@ -425,10 +425,11 @@ namespace Eldenheim
                 // Locked on: lift it by what it falls on the way, so it arrives at the target.
                 velocity.y += 0.5f * projectile.m_gravity * Mathf.Min(Vector3.Distance(AimAt.Value, from) / throwing.m_projectileVel, 2f);
             }
-            if (borrowed && projectile != null)
+            if (borrowed && projectile != null && (cls == "Smithscript Axe" || cls == "Smithscript Hammer"))
             {
                 // The flint spear's thin ray under a sledge's model: the weapon spinning end over end
-                // strikes about as far out as its head reaches from the middle.
+                // strikes about as far out as its head reaches from the middle. A spear or a knife
+                // flies point first, on the flint spear's own ray.
                 projectile.m_rayRadius = Mathf.Max(projectile.m_rayRadius, ThrownReach(weapon));
             }
             go.GetComponent<IProjectile>()?.Setup(vp, velocity, throwing.m_attackHitNoise, data, consume ? flying : null, null);
@@ -1242,7 +1243,8 @@ namespace Eldenheim
                         }
                         SwingLog = $"swing: {(air ? "air attack" : act.ToString())} at frame {f:0.0}, window {opens[i]:0.#}-{closes[i]:0.#} ({Item(vp, by)?.m_shared.m_name})";
                         // Once a swing: setting a trail's Emit again mid-swing restarts its point pool under its live points.
-                        if (Settings.SwingTrails.Value && by != null && !_trailed.Contains(by))
+                        // Not on a throw: the weapon has left the hand, and the trail would draw from the one reforming there.
+                        if (Settings.SwingTrails.Value && by != null && !_trailed.Contains(by) && !IsThrow(p, i))
                         {
                             Trails(by, true);
                             _trailed.Add(by);
