@@ -93,13 +93,13 @@ Eldenheim has 57 Elden Ring movesets. Any can be picked for any Valheim weapon c
 | Torches | Torch |
 
 The Smithscript weapons throw when Elden Ring's do, usually on heavy attacks.
-Spear: Heavy1, Running Heavy
-Axe: Heavy1, Jump Heavy
-Daggers: Every attack
-Hammer: Heavy1 (sledgehammers use their AoE if fully charged)
-ThrowSpears setting removes the spear from your inventory when thrown.
-Throws while locked on fly at the target, lifted to make up for the drop at that range.
-Two-handing the Dagger puts one in each hand and throws from both.
+- Spear: Heavy1, Running Heavy
+- Axe: Heavy1, Jump Heavy
+- Daggers: Every attack
+- Hammer: Heavy1 (sledgehammers use their AoE if fully charged)
+- ThrowSpears setting removes the spear from your inventory when thrown.
+- Throws while locked on fly at the target, lifted to make up for the drop at that range.
+- Two-handing the Dagger puts one in each hand and throws from both.
 
 Feint attacks come with the classes that have them in Elden Ring.
 The Carian Knight's Sword guards while its heavies charge: a blocked hit doesn't stop the attack. 
@@ -245,26 +245,26 @@ held when a menu closes or the game unpauses does nothing until it is let go
   your hips misses, with no hit at all.
 
 **Weapon class moveset defaults:** 
-BareHands → Fist
-OneHandedSwords → Longsword
-TwoHandedSwords → Claymore
-Knives → Dagger
-OneHandedClubs → Morning Star
-TwoHandedClubs → Great Hammer
-OneHandedAxes → Hand Axe
-TwoHandedAxes → Greataxe
-Polearms → Halberd
-Spears → Smithscript Spear
-Knuckles → Claw
+- BareHands → Fist
+- OneHandedSwords → Longsword
+- TwoHandedSwords → Claymore
+- Knives → Dagger
+- OneHandedClubs → Morning Star
+- TwoHandedClubs → Great Hammer
+- OneHandedAxes → Hand Axe
+- TwoHandedAxes → Greataxe
+- Polearms → Halberd
+- Spears → Smithscript Spear
+- Knuckles → Claw
 
 Sledgehammer AoE comes with fully charged heavies, guard counters, 
 and the Smithscript Hammer's fully charged throws (F1 → 6 - Combat → `SledgeAoeChargedOnly`;
 if off, uncharged heavies slam too, which is overpowered).
 
 Therzie's Warfare:
-PairedSwords → Power stanced curved swords
-Scythes → Reaper
-ThrowingAxes → Smithscript Axe
+- PairedSwords → Power stanced curved swords
+- Scythes → Reaper
+- ThrowingAxes → Smithscript Axe
 
 Therzie's weapons follow their Valheim type above.
 Each weapon's special (its secondary attack: the dwarven lightning, Doombringer's
