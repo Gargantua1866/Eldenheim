@@ -123,7 +123,7 @@ backstep's attack. Milady's unique attack chain is included.
 - **Crouch attack:** light while crouching.
 - **Jump attacks:** light or heavy in the air, striking as you come down.
 - **Guard counter:** heavy right after blocking a hit. Plays the Elden Ring sound effect.
-- **Feints:** press dodge while charging a heavy: you hop back instead of swinging.
+- **Feints:** press dodge while charging a heavy: you move backwards after swinging.
   Classes that have them: Curved Swords, Thrusting Swords,
   Heavy Thrusting Swords, Beast Claw, Smithscript Dagger, Great Katanas
 - **Left-hand attacks:** with a weapon in the left hand, the guard button
