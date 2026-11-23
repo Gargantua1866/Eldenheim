@@ -57,6 +57,37 @@ namespace Eldenheim
 
         private static void KeepEscape(ref bool __result) => __result |= Listening;
 
+        /// <summary>
+        /// The Configuration Manager's dropdown lists draw rich text, so the moveset
+        /// list's dividers can be coloured (Settings.MovesetChoices). Its style is made
+        /// again whenever the menu's look changes, so it is set each time it's fetched.
+        /// </summary>
+        public static void PatchDropdowns(HarmonyLib.Harmony harmony)
+        {
+            var original = HarmonyLib.AccessTools.Method(HarmonyLib.AccessTools.TypeByName("ConfigurationManager.ConfigurationManagerStyles"), "GetComboBoxStyle");
+            if (original == null)
+            {
+                Plugin.Report("patch: ConfigurationManagerStyles.GetComboBoxStyle not found (the moveset dividers show their colour tags)");
+                return;
+            }
+            try
+            {
+                harmony.Patch(original, postfix: new HarmonyLib.HarmonyMethod(typeof(InputDrawer), nameof(RichDropdown)));
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Report($"patch: ConfigurationManagerStyles.GetComboBoxStyle failed: {ex.Message}");
+            }
+        }
+
+        private static void RichDropdown(GUIStyle __result)
+        {
+            if (__result != null)
+            {
+                __result.richText = true;
+            }
+        }
+
         public static ConfigurationManagerAttributes For(bool gamepad) => new ConfigurationManagerAttributes
         {
             CustomDrawer = entry => Draw(entry, gamepad),

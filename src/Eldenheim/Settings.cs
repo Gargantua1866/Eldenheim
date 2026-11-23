@@ -128,10 +128,14 @@ namespace Eldenheim
         /// </summary>
         public static readonly string[] ErClasses = ErClassGroups.SelectMany(g => g.Skip(1)).ToArray();
 
-        /// <summary>The F1 dropdown's entries: each type's divider ("---Straight Swords---"), then its classes.</summary>
-        private static readonly string[] MovesetChoices = ErClassGroups.SelectMany(g => g.Skip(1).Prepend("---" + g[0] + "---")).ToArray();
+        /// <summary>
+        /// The F1 dropdown's entries: each type's divider ("---Straight Swords---", in yellow:
+        /// InputDrawer.PatchDropdowns turns on rich text in the list), then its classes.
+        /// </summary>
+        private static readonly string[] MovesetChoices =
+            ErClassGroups.SelectMany(g => g.Skip(1).Prepend("<color=yellow>---" + g[0] + "---</color>")).ToArray();
 
-        private static bool IsDivider(string value) => value != null && value.StartsWith("---");
+        private static bool IsDivider(string value) => value != null && value.Contains("---");
 
         // Setting key, default class, what it covers and the notable choices. Listed in this order.
         private static readonly string[][] Movesets =

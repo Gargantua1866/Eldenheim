@@ -12,6 +12,8 @@ using UnityEngine;
 namespace Eldenheim
 {
     [BepInPlugin(Guid, "Eldenheim", "0.6.44")]
+    // Loaded first when installed, so its dropdown style can be patched (InputDrawer.PatchDropdowns).
+    [BepInDependency("_shudnal.ConfigurationManager", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "com.gargantua.eldenheim";
@@ -36,6 +38,7 @@ namespace Eldenheim
             Patches.Apply(harmony);
             Hands.Apply(harmony);
             BalanceSync.Apply(harmony, Config);
+            InputDrawer.PatchDropdowns(harmony);
             Report($"loaded {Info.Metadata.Version}");
         }
 
