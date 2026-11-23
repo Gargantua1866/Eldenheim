@@ -129,11 +129,11 @@ namespace Eldenheim
         public static readonly string[] ErClasses = ErClassGroups.SelectMany(g => g.Skip(1)).ToArray();
 
         /// <summary>
-        /// The F1 dropdown's entries: each type's divider ("---Straight Swords---", in yellow:
+        /// The F1 dropdown's entries: each type's divider ("---Straight Swords---", bold light blue:
         /// InputDrawer.PatchDropdowns turns on rich text in the list), then its classes.
         /// </summary>
         private static readonly string[] MovesetChoices =
-            ErClassGroups.SelectMany(g => g.Skip(1).Prepend("<color=yellow>---" + g[0] + "---</color>")).ToArray();
+            ErClassGroups.SelectMany(g => g.Skip(1).Prepend("<b><color=#6EC6FF>---" + g[0] + "---</color></b>")).ToArray();
 
         private static bool IsDivider(string value) => value != null && value.Contains("---");
 
